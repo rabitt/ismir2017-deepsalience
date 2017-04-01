@@ -328,14 +328,12 @@ def main(args):
 
     for mtrack in mtracks:
 
-        try:
-            print(mtrack.track_id)
-            compute_features_mtrack(
-                mtrack, args.save_dir, args.option, args.gaussian_blur
-            )
+        print(mtrack.track_id)
+        compute_features_mtrack(
+            mtrack, args.save_dir, args.option, args.gaussian_blur
+        )
 
-        except:
-            print("    > Something failed :(")
+
 
 
 if __name__ == "__main__":
