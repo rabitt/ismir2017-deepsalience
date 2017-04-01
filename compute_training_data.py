@@ -349,9 +349,6 @@ if __name__ == "__main__":
                         help="Type of data to compute. " +
                         "One of 'solo_pitch' 'melody1', 'melody2', 'melody3' " +
                         "'multif0_incomplete', 'multif0_complete'.")
-    parser.add_argument("gaussian_blur",
-                        type=bool,
-                        help="")
     parser.add_argument('--blur-labels',
                         dest='gaussian_blur',
                         action='store_true')
