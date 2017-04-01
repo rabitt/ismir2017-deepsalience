@@ -93,11 +93,13 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
     annot_time_idx = np.digitize(annotation_times, time_bins) - 1
     annot_freq_idx = np.digitize(annotation_freqs, freq_bins) - 1
 
-    annotation_target = np.zeros((len(freq_grid), len(time_grid)))
+    n_freqs = len(freq_grid)
+    n_times = len(time_grid)
+    annotation_target = np.zeros((n_freqs, n_times))
 
-    print(annotation_target.shape)
-    print(np.max(annot_time_idx))
-    print(np.max(annot_freq_idx))
+    annot_time_idx = annot_time_idx[annot_time_idx < n_times]
+    annot_freq_idx = annot_freq_idx[annot_freq_idx < n_freqs]
+
     annotation_target[annot_freq_idx, annot_time_idx] = 1
 
     if gaussian_blur:
@@ -326,9 +328,7 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
 
 
 def main(args):
-    print(args.option)
-    print(args.gaussian_blur)
-    print(args.save_dir)
+
     mtracks = mdb.load_all_multitracks(
         dataset_version=['V1', 'V2', 'EXTRA', 'BACH10']
     )
@@ -340,7 +340,7 @@ def main(args):
             mtrack, args.save_dir, args.option, args.gaussian_blur
         )
 
-
+    print("Done!")
 
 
 if __name__ == "__main__":
