@@ -322,6 +322,9 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
 
 
 def main(args):
+    print(args.option)
+    print(args.gaussian_blur)
+    print(args.save_dir)
     mtracks = mdb.load_all_multitracks(
         dataset_version=['V1', 'V2', 'EXTRA', 'BACH10']
     )
