@@ -94,6 +94,10 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
     annot_freq_idx = np.digitize(annotation_freqs, freq_bins) - 1
 
     annotation_target = np.zeros((len(freq_grid), len(time_grid)))
+
+    print(annotation_target.shape)
+    print(np.max(annot_time_idx))
+    print(np.max(annot_freq_idx))
     annotation_target[annot_freq_idx, annot_time_idx] = 1
 
     if gaussian_blur:
