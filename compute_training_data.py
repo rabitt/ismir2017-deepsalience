@@ -130,10 +130,13 @@ def get_all_pitch_annotations(mtrack):
         annot_times.append(annot[0])
         annot_freqs.append(annot[1])
 
-    annot_times = np.concatenate(annot_times)
-    annot_freqs = np.concatenate(annot_freqs)
+    if len(annot_times) > 0:
+        annot_times = np.concatenate(annot_times)
+        annot_freqs = np.concatenate(annot_freqs)
 
-    return annot_times, annot_freqs, stems_used
+        return annot_times, annot_freqs, stems_used
+    else:
+        return None, None, None
 
 
 def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
@@ -152,6 +155,7 @@ def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
 
 def save_data(save_path, X, Y, f, t):
     np.savez(save_path, data_in=X, data_out=Y, freq=f, time=t)
+    print("    Saved data to {}".format(save_path))
 
 
 def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
@@ -176,7 +180,7 @@ def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
 def compute_melody1(mtrack, save_dir, gaussian_blur):
     data = mtrack.melody1_annotation
     if data is None:
-        pass
+        print("    No melody 1 data")
     else:
         save_path = os.path.join(
             save_dir, "{}_mel1.npz".format(mtrack.track_id)
@@ -200,7 +204,7 @@ def compute_melody1(mtrack, save_dir, gaussian_blur):
 def compute_melody2(mtrack, save_dir, gaussian_blur):
     data = mtrack.melody2_annotation
     if data is None:
-        pass
+        print("    No melody 2 data")
     else:
         save_path = os.path.join(
             save_dir, "{}_mel2.npz".format(mtrack.track_id)
@@ -224,7 +228,7 @@ def compute_melody2(mtrack, save_dir, gaussian_blur):
 def compute_melody3(mtrack, save_dir, gaussian_blur):
     data = mtrack.melody3_annotation
     if data is None:
-        pass
+        print("    No melody 3 data")
     else:
         save_path = os.path.join(
             save_dir, "{}_mel3.npz".format(mtrack.track_id)
@@ -256,12 +260,17 @@ def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
         save_dir, "{}_multif0_incomplete.npz".format(mtrack.track_id)
     )
     times, freqs, stems_used = get_all_pitch_annotations(mtrack)
-    print(stems_used)
-    X, Y, f, t = get_input_output_pairs(
-        mtrack.mix_path, times, freqs, gaussian_blur
-    )
 
-    save_data(save_path, X, Y, f, t)
+    if times is not None:
+
+        X, Y, f, t = get_input_output_pairs(
+            mtrack.mix_path, times, freqs, gaussian_blur
+        )
+
+        save_data(save_path, X, Y, f, t)
+
+    else:
+        print("    No multif0 data")
 
 
 def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
@@ -270,25 +279,29 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
     )
     times, freqs, stems_used = get_all_pitch_annotations(mtrack)
 
-    for i, stem in mtrack.stems.items():
-        unvoiced = all([
-            f0_type == 'u' for f0_type in stem.f0_type
-        ])
-        if unvoiced:
-            stems_used.append(i)
+    if times is not None:
+        for i, stem in mtrack.stems.items():
+            unvoiced = all([
+                f0_type == 'u' for f0_type in stem.f0_type
+            ])
+            if unvoiced:
+                stems_used.append(i)
 
-    multif0_mix_path = os.path.join(
-        save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
-    )
+        multif0_mix_path = os.path.join(
+            save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
+        )
 
-    mix.mix_multitrack(
-        mtrack, multif0_mix_path, stem_indices=stems_used
-    )
+        mix.mix_multitrack(
+            mtrack, multif0_mix_path, stem_indices=stems_used
+        )
 
-    X, Y, f, t = get_input_output_pairs(
-        multif0_mix_path, times, freqs, gaussian_blur
-    )
-    save_data(save_path, X, Y, f, t)
+        X, Y, f, t = get_input_output_pairs(
+            multif0_mix_path, times, freqs, gaussian_blur
+        )
+        save_data(save_path, X, Y, f, t)
+
+    else:
+        print("    No multif0 data")
 
 
 def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
@@ -316,6 +329,7 @@ def main(args):
     for mtrack in mtracks:
 
         try:
+            print(mtrack.track_id)
             compute_features_mtrack(
                 mtrack, args.save_dir, args.option, args.gaussian_blur
             )
