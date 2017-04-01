@@ -192,7 +192,7 @@ def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
 def compute_melody1(mtrack, save_dir, gaussian_blur):
     data = mtrack.melody1_annotation
     if data is None:
-        print("    No melody 1 data")
+        print("    {} No melody 1 data".format(mtrack.track_id))
     else:
         save_path = os.path.join(
             save_dir, "{}_mel1.npz".format(mtrack.track_id)
@@ -212,13 +212,13 @@ def compute_melody1(mtrack, save_dir, gaussian_blur):
             )
             save_data(save_path, X, Y, f, t)
         else:
-            print("   already computed!")
+            print("   {} already computed!".format(mtrack.track_id))
 
 
 def compute_melody2(mtrack, save_dir, gaussian_blur):
     data = mtrack.melody2_annotation
     if data is None:
-        print("    No melody 2 data")
+        print("    {} No melody 2 data".format(mtrack.track_id))
     else:
         save_path = os.path.join(
             save_dir, "{}_mel2.npz".format(mtrack.track_id)
@@ -238,13 +238,13 @@ def compute_melody2(mtrack, save_dir, gaussian_blur):
             )
             save_data(save_path, X, Y, f, t)
         else:
-            print("   already computed!")
+            print("   {} already computed!".format(mtrack.track_id))
 
 
 def compute_melody3(mtrack, save_dir, gaussian_blur):
     data = mtrack.melody3_annotation
     if data is None:
-        print("    No melody 3 data")
+        print("   {} No melody 3 data".format(mtrack.track_id))
     else:
         save_path = os.path.join(
             save_dir, "{}_mel3.npz".format(mtrack.track_id)
@@ -272,7 +272,7 @@ def compute_melody3(mtrack, save_dir, gaussian_blur):
             )
             save_data(save_path, X, Y, f, t)
         else:
-            print("   already computed!")
+            print("   {} already computed!".format(mtrack.track_id))
 
 
 def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
@@ -292,10 +292,10 @@ def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
             save_data(save_path, X, Y, f, t)
 
         else:
-            print("    No multif0 data")
+            print("    {} No multif0 data".format(mtrack.track_id))
 
     else:
-        print("   already computed!")
+        print("   {} already computed!".format(mtrack.track_id))
 
 
 def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
@@ -329,9 +329,9 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
             save_data(save_path, X, Y, f, t)
 
         else:
-            print("    No multif0 data")
+            print("    {} No multif0 data".format(mtrack.track_id))
     else:
-        print("   already computed!")
+        print("   {} already computed!".format(mtrack.track_id))
 
 
 def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
