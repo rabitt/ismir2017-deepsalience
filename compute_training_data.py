@@ -1,6 +1,7 @@
 """Script to compute training data"""
 from __future__ import print_function
 
+import argparse
 import librosa
 import medleydb as mdb
 from medleydb import mix
