@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import argparse
+from joblib import Parallel, delayed
 import librosa
 import medleydb as mdb
 from medleydb import mix
@@ -196,20 +197,22 @@ def compute_melody1(mtrack, save_dir, gaussian_blur):
         save_path = os.path.join(
             save_dir, "{}_mel1.npz".format(mtrack.track_id)
         )
+        if not os.path.exists(save_path):
+            annot = np.array(data).T
+            times = annot[0]
+            freqs = annot[1]
 
-        annot = np.array(data).T
-        times = annot[0]
-        freqs = annot[1]
+            idx = np.where(freqs != 0.0)[0]
 
-        idx = np.where(freqs != 0.0)[0]
+            times = times[idx]
+            freqs = freqs[idx]
 
-        times = times[idx]
-        freqs = freqs[idx]
-
-        X, Y, f, t = get_input_output_pairs(
-            mtrack.mix_path, times, freqs, gaussian_blur
-        )
-        save_data(save_path, X, Y, f, t)
+            X, Y, f, t = get_input_output_pairs(
+                mtrack.mix_path, times, freqs, gaussian_blur
+            )
+            save_data(save_path, X, Y, f, t)
+        else:
+            print("   already computed!")
 
 
 def compute_melody2(mtrack, save_dir, gaussian_blur):
@@ -220,20 +223,22 @@ def compute_melody2(mtrack, save_dir, gaussian_blur):
         save_path = os.path.join(
             save_dir, "{}_mel2.npz".format(mtrack.track_id)
         )
+        if not os.path.exists(save_path):
+            annot = np.array(data).T
+            times = annot[0]
+            freqs = annot[1]
 
-        annot = np.array(data).T
-        times = annot[0]
-        freqs = annot[1]
+            idx = np.where(freqs != 0.0)[0]
 
-        idx = np.where(freqs != 0.0)[0]
+            times = times[idx]
+            freqs = freqs[idx]
 
-        times = times[idx]
-        freqs = freqs[idx]
-
-        X, Y, f, t = get_input_output_pairs(
-            mtrack.mix_path, times, freqs, gaussian_blur
-        )
-        save_data(save_path, X, Y, f, t)
+            X, Y, f, t = get_input_output_pairs(
+                mtrack.mix_path, times, freqs, gaussian_blur
+            )
+            save_data(save_path, X, Y, f, t)
+        else:
+            print("   already computed!")
 
 
 def compute_melody3(mtrack, save_dir, gaussian_blur):
@@ -244,78 +249,93 @@ def compute_melody3(mtrack, save_dir, gaussian_blur):
         save_path = os.path.join(
             save_dir, "{}_mel3.npz".format(mtrack.track_id)
         )
-        annot = np.array(data).T
-        times = annot[0]
-        all_freqs = annot[1:]
-        time_list = []
-        freq_list = []
-        for i in range(len(all_freqs)):
-            time_list.extend(list(times))
-            freq_list.extend(list(all_freqs[i]))
+        if not os.path.exists(save_path):
 
-        time_list = np.array(time_list)
-        freq_list = np.array(freq_list)
-        idx = np.where(freq_list != 0.0)[0]
+            annot = np.array(data).T
+            times = annot[0]
+            all_freqs = annot[1:]
+            time_list = []
+            freq_list = []
+            for i in range(len(all_freqs)):
+                time_list.extend(list(times))
+                freq_list.extend(list(all_freqs[i]))
 
-        time_list = time_list[idx]
-        freq_list = freq_list[idx]
+            time_list = np.array(time_list)
+            freq_list = np.array(freq_list)
+            idx = np.where(freq_list != 0.0)[0]
 
-        X, Y, f, t = get_input_output_pairs(
-            mtrack.mix_path, time_list, freq_list, gaussian_blur
-        )
-        save_data(save_path, X, Y, f, t)
+            time_list = time_list[idx]
+            freq_list = freq_list[idx]
+
+            X, Y, f, t = get_input_output_pairs(
+                mtrack.mix_path, time_list, freq_list, gaussian_blur
+            )
+            save_data(save_path, X, Y, f, t)
+        else:
+            print("   already computed!")
 
 
 def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
     save_path = os.path.join(
         save_dir, "{}_multif0_incomplete.npz".format(mtrack.track_id)
     )
-    times, freqs, stems_used = get_all_pitch_annotations(mtrack)
+    if not os.path.exists(save_path):
 
-    if times is not None:
+        times, freqs, _ = get_all_pitch_annotations(mtrack)
 
-        X, Y, f, t = get_input_output_pairs(
-            mtrack.mix_path, times, freqs, gaussian_blur
-        )
+        if times is not None:
 
-        save_data(save_path, X, Y, f, t)
+            X, Y, f, t = get_input_output_pairs(
+                mtrack.mix_path, times, freqs, gaussian_blur
+            )
+
+            save_data(save_path, X, Y, f, t)
+
+        else:
+            print("    No multif0 data")
 
     else:
-        print("    No multif0 data")
+        print("   already computed!")
 
 
 def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
     save_path = os.path.join(
         save_dir, "{}_multif0_complete.npz".format(mtrack.track_id)
     )
-    times, freqs, stems_used = get_all_pitch_annotations(mtrack)
 
-    if times is not None:
-        for i, stem in mtrack.stems.items():
-            unvoiced = all([
-                f0_type == 'u' for f0_type in stem.f0_type
-            ])
-            if unvoiced:
-                stems_used.append(i)
+    if not os.path.exists(save_path):
 
-        multif0_mix_path = os.path.join(
-            save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
-        )
+        times, freqs, stems_used = get_all_pitch_annotations(mtrack)
 
-        mix.mix_multitrack(
-            mtrack, multif0_mix_path, stem_indices=stems_used
-        )
+        if times is not None:
+            for i, stem in mtrack.stems.items():
+                unvoiced = all([
+                    f0_type == 'u' for f0_type in stem.f0_type
+                ])
+                if unvoiced:
+                    stems_used.append(i)
 
-        X, Y, f, t = get_input_output_pairs(
-            multif0_mix_path, times, freqs, gaussian_blur
-        )
-        save_data(save_path, X, Y, f, t)
+            multif0_mix_path = os.path.join(
+                save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
+            )
 
+            mix.mix_multitrack(
+                mtrack, multif0_mix_path, stem_indices=stems_used
+            )
+
+            X, Y, f, t = get_input_output_pairs(
+                multif0_mix_path, times, freqs, gaussian_blur
+            )
+            save_data(save_path, X, Y, f, t)
+
+        else:
+            print("    No multif0 data")
     else:
-        print("    No multif0 data")
+        print("   already computed!")
 
 
 def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
+    print(mtrack.track_id)
     if option == 'solo_pitch':
         compute_solo_pitch(mtrack, save_dir, gaussian_blur)
     elif option == 'melody1':
@@ -332,18 +352,23 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
         raise ValueError("Invalid value for `option`.")
 
 
+
 def main(args):
 
     mtracks = mdb.load_all_multitracks(
         dataset_version=['V1', 'V2', 'EXTRA', 'BACH10']
     )
 
-    for mtrack in mtracks:
-
-        print(mtrack.track_id)
-        compute_features_mtrack(
+    Parallel(n_jobs=-1, verbose=5)(
+        delayed(compute_features_mtrack)(
             mtrack, args.save_dir, args.option, args.gaussian_blur
-        )
+        ) for mtrack in mtracks) 
+
+    # for mtrack in mtracks:
+
+    #     compute_features_mtrack(
+    #         mtrack, args.save_dir, args.option, args.gaussian_blur
+    #     )
 
     print("Done!")
 
