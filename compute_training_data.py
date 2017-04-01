@@ -95,11 +95,16 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
 
     n_freqs = len(freq_grid)
     n_times = len(time_grid)
+
+    idx = annot_time_idx < n_times
+    annot_time_idx = annot_time_idx[idx]
+    annot_freq_idx = annot_freq_idx[idx]
+
+    idx2 = annot_freq_idx < n_freqs
+    annot_time_idx = annot_time_idx[idx2]
+    annot_freq_idx = annot_freq_idx[idx2]
+
     annotation_target = np.zeros((n_freqs, n_times))
-
-    annot_time_idx = annot_time_idx[annot_time_idx < n_times]
-    annot_freq_idx = annot_freq_idx[annot_freq_idx < n_freqs]
-
     annotation_target[annot_freq_idx, annot_time_idx] = 1
 
     if gaussian_blur:
