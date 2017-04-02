@@ -147,10 +147,15 @@ def get_annot_activation(annot_data, mtrack_duration):
     # blur the edges
     temp = np.zeros(annot_activation.shape)
     temp += annot_activation
-    temp[44100:] += annot_activation[:-44100]
-    temp[:-44100] += annot_activation[44100:]
+    for i in [1, 4, 8, 16, 32, 64, 128]:
+        temp[256*i:] += annot_activation[:-(256*i)]
+        temp[:-(256*i)] += annot_activation[256*i:]
 
     annot_activation = np.array(temp > 0, dtype=float)
+
+    annot_activation = np.convolve(
+        annot_activation, np.ones((2048,))/2048.0, mode='same'
+    )
 
     return annot_activation
 
