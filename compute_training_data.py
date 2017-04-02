@@ -145,7 +145,8 @@ def get_annot_activation(annot_data, mtrack_duration):
     annot_activation = upfirdn(np.ones((256, )), annot_activation)
 
     # blur the edges
-    temp = annot_activation
+    temp = np.zeros(annot_activation.shape)
+    temp += annot_activation
     temp[11025:] += annot_activation[:-11025]
     temp[:-11025] += annot_activation[11025:]
 
@@ -359,6 +360,15 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
 
     if not os.path.exists(save_path):
 
+        bad_mtrack = False
+        for stem in mtrack.stems.values():
+            if stem.pitch_estimate_pyin is not None:
+                if 'p' in stem.f0_type:
+                    bad_mtrack = True
+        if bad_mtrack:
+            print("multitrack has stems with polyphonic instruments")
+            return None
+
         (times, freqs, stems_used,
          stem_annot_activity) = get_all_pitch_annotations(mtrack)
 
@@ -424,8 +434,11 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
 
 def main(args):
 
+    # mtracks = mdb.load_all_multitracks(
+    #     dataset_version=['V1', 'V2', 'EXTRA']
+    # )
     mtracks = mdb.load_all_multitracks(
-        dataset_version=['V1', 'V2', 'EXTRA']
+        dataset_version=['V1']
     )
 
     Parallel(n_jobs=-1, verbose=5)(
