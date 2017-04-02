@@ -463,7 +463,7 @@ def main(args):
         dataset_version=['V1']
     )
 
-    Parallel(n_jobs=-1, verbose=5)(
+    Parallel(n_jobs=args.n_jobs, verbose=5)(
         delayed(compute_features_mtrack)(
             mtrack, args.save_dir, args.option, args.gaussian_blur
         ) for mtrack in mtracks) 
@@ -482,6 +482,9 @@ if __name__ == "__main__":
                         help="Type of data to compute. " +
                         "One of 'solo_pitch' 'melody1', 'melody2', 'melody3' " +
                         "'multif0_incomplete', 'multif0_complete'.")
+    parser.add_argument("n_jobs",
+                        type=int,
+                        help="Number of jobs to run in parallel.")
     parser.add_argument('--blur-labels',
                         dest='gaussian_blur',
                         action='store_true')
