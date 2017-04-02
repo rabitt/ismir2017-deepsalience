@@ -147,8 +147,8 @@ def get_annot_activation(annot_data, mtrack_duration):
     # blur the edges
     temp = np.zeros(annot_activation.shape)
     temp += annot_activation
-    temp[11025:] += annot_activation[:-11025]
-    temp[:-11025] += annot_activation[11025:]
+    temp[44100:] += annot_activation[:-44100]
+    temp[:-44100] += annot_activation[44100:]
 
     annot_activation = np.array(temp > 0, dtype=float)
 
