@@ -8,7 +8,9 @@ import medleydb as mdb
 from medleydb import mix
 import numpy as np
 import os
+from scipy.signal import upfirdn
 from scipy.ndimage import filters
+import sox
 
 
 def get_hcqt_params():
@@ -122,16 +124,68 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
     return annotation_target_blur
 
 
+def get_annot_activation(annot_data, mtrack_duration):
+    annot = np.array(annot_data).T
+    times = annot[0]
+    freqs = annot[1]
+
+    n_time_frames = int(np.ceil(mtrack_duration * float(44100)))
+    time_grid = librosa.core.frames_to_time(
+        range(n_time_frames), sr=44100, hop_length=1
+    )
+    time_bins = grid_to_bins(time_grid, 0.0, time_grid[-1])
+
+    annot_time_idx = np.digitize(times, time_bins) - 1
+    annot_time_idx = annot_time_idx[annot_time_idx < len(time_grid)]
+
+    freq_complete = np.zeros(time_grid.shape)
+    freq_complete[annot_time_idx] = freqs
+
+    annot_activation = np.array(freq_complete > 0, dtype=float)
+    annot_activation = upfirdn(np.ones((256, )), annot_activation)
+
+    # blur the edges
+    temp = annot_activation
+    temp[11025:] += annot_activation[:-11025]
+    temp[:-11025] += annot_activation[11025:]
+
+    annot_activation = np.array(temp > 0, dtype=float)
+
+    return annot_activation
+
+
+def create_filtered_stem(original_audio, output_path, annot_activation):
+    sr = 44100
+    y, _ = librosa.load(original_audio, sr=sr)
+
+    n_annot = len(annot_activation)
+    n_y = len(y)
+
+    if n_annot > n_y:
+        annot_activation = annot_activation[:n_y]
+    elif n_annot < n_y:
+        np.append(annot_activation, np.zeros((n_y - n_annot,)))
+
+    y_out = y * annot_activation
+    librosa.output.write_wav(output_path, y_out, sr, norm=False)
+    return output_path
+
+
 def get_all_pitch_annotations(mtrack):
     annot_times = []
     annot_freqs = []
     stems_used = []
+    stem_annot_activity = {}
     for stem in mtrack.stems.values():
         data = stem.pitch_annotation
         data2 = stem.pitch_estimate_pyin
         if data is not None:
             annot = data
             stems_used.append(stem.stem_idx)
+            stem_annot_activity[stem.stem_idx] = get_annot_activation(
+                data, mtrack.duration
+            )
+
         elif data2 is not None:
             annot = data2
             stems_used.append(stem.stem_idx)
@@ -146,9 +200,9 @@ def get_all_pitch_annotations(mtrack):
         annot_times = np.concatenate(annot_times)
         annot_freqs = np.concatenate(annot_freqs)
 
-        return annot_times, annot_freqs, stems_used
+        return annot_times, annot_freqs, stems_used, stem_annot_activity
     else:
-        return None, None, None
+        return None, None, None, stem_annot_activity
 
 
 def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
@@ -281,7 +335,7 @@ def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
     )
     if not os.path.exists(save_path):
 
-        times, freqs, _ = get_all_pitch_annotations(mtrack)
+        times, freqs, _, _ = get_all_pitch_annotations(mtrack)
 
         if times is not None:
 
@@ -305,7 +359,8 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
 
     if not os.path.exists(save_path):
 
-        times, freqs, stems_used = get_all_pitch_annotations(mtrack)
+        (times, freqs, stems_used,
+         stem_annot_activity) = get_all_pitch_annotations(mtrack)
 
         if times is not None:
             for i, stem in mtrack.stems.items():
@@ -319,8 +374,23 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
                 save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
             )
 
+            # stems that were manually annotated may not be fully annotated :(
+            # silencing out any part of the stem that does not contain
+            # annotations just to be safe
+            alternate_files = {}
+            for key in stem_annot_activity.keys():
+                new_stem_path = os.path.join(
+                    save_dir, "{}_STEM_{}_alt.wav".format(mtrack.track_id, key)
+                )
+                created_path = create_filtered_stem(
+                    mtrack.stems[key].audio_path, new_stem_path,
+                    stem_annot_activity[key]
+                )
+                alternate_files[key] = created_path
+
             mix.mix_multitrack(
-                mtrack, multif0_mix_path, stem_indices=stems_used
+                mtrack, multif0_mix_path, alternate_files=alternate_files,
+                stem_indices=stems_used
             )
 
             X, Y, f, t = get_input_output_pairs(
@@ -352,23 +422,16 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
         raise ValueError("Invalid value for `option`.")
 
 
-
 def main(args):
 
     mtracks = mdb.load_all_multitracks(
-        dataset_version=['V1', 'V2', 'EXTRA', 'BACH10']
+        dataset_version=['V1', 'V2', 'EXTRA']
     )
 
     Parallel(n_jobs=-1, verbose=5)(
         delayed(compute_features_mtrack)(
             mtrack, args.save_dir, args.option, args.gaussian_blur
         ) for mtrack in mtracks) 
-
-    # for mtrack in mtracks:
-
-    #     compute_features_mtrack(
-    #         mtrack, args.save_dir, args.option, args.gaussian_blur
-    #     )
 
     print("Done!")
 
