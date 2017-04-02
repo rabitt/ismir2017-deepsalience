@@ -95,7 +95,8 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
 
     annot_time_idx = np.digitize(annotation_times, time_bins) - 1
     annot_freq_idx = np.digitize(annotation_freqs, freq_bins) - 1
-
+    print(annot_time_idx.shape)
+    print(annot_freq_idx.shape)
     n_freqs = len(freq_grid)
     n_times = len(time_grid)
 
@@ -103,9 +104,15 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
     annot_time_idx = annot_time_idx[idx]
     annot_freq_idx = annot_freq_idx[idx]
 
+    print(annot_time_idx.shape)
+    print(annot_freq_idx.shape)
+
     idx2 = annot_freq_idx < n_freqs
     annot_time_idx = annot_time_idx[idx2]
     annot_freq_idx = annot_freq_idx[idx2]
+
+    print(annot_time_idx.shape)
+    print(annot_freq_idx.shape)
 
     annotation_target = np.zeros((n_freqs, n_times))
     annotation_target[annot_freq_idx, annot_time_idx] = 1
