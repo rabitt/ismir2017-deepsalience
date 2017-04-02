@@ -448,7 +448,7 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
         print("   {} already computed!".format(mtrack.track_id))
 
 
-def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur
+def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur,
                             precomputed_hcqt_path, ext='mel1'):
     print(mtrack.track_id)
     if precomputed_hcqt_path is not None:
