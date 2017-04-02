@@ -397,11 +397,12 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
                 new_stem_path = os.path.join(
                     save_dir, "{}_STEM_{}_alt.wav".format(mtrack.track_id, key)
                 )
-                created_path = create_filtered_stem(
-                    mtrack.stems[key].audio_path, new_stem_path,
-                    stem_annot_activity[key]
-                )
-                alternate_files[key] = created_path
+                if not os.path.exists(new_stem_path):
+                    create_filtered_stem(
+                        mtrack.stems[key].audio_path, new_stem_path,
+                        stem_annot_activity[key]
+                    )
+                alternate_files[key] = new_stem_path
 
             mix.mix_multitrack(
                 mtrack, multif0_mix_path, alternate_files=alternate_files,
@@ -446,7 +447,7 @@ def main(args):
         dataset_version=['V1']
     )
 
-    Parallel(n_jobs=8, verbose=5)(
+    Parallel(n_jobs=16, verbose=5)(
         delayed(compute_features_mtrack)(
             mtrack, args.save_dir, args.option, args.gaussian_blur
         ) for mtrack in mtracks) 
