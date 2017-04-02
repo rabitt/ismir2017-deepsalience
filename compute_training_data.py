@@ -95,8 +95,7 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
 
     annot_time_idx = np.digitize(annotation_times, time_bins) - 1
     annot_freq_idx = np.digitize(annotation_freqs, freq_bins) - 1
-    print(annot_time_idx.shape)
-    print(annot_freq_idx.shape)
+
     n_freqs = len(freq_grid)
     n_times = len(time_grid)
 
@@ -104,15 +103,9 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
     annot_time_idx = annot_time_idx[idx]
     annot_freq_idx = annot_freq_idx[idx]
 
-    print(annot_time_idx.shape)
-    print(annot_freq_idx.shape)
-
     idx2 = annot_freq_idx < n_freqs
     annot_time_idx = annot_time_idx[idx2]
     annot_freq_idx = annot_freq_idx[idx2]
-
-    print(annot_time_idx.shape)
-    print(annot_freq_idx.shape)
 
     annotation_target = np.zeros((n_freqs, n_times))
     annotation_target[annot_freq_idx, annot_time_idx] = 1
@@ -121,9 +114,12 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
         annotation_target_blur = filters.gaussian_filter1d(
             annotation_target, 2, axis=0, mode='constant'
         )
-        min_target = np.min(
-            annotation_target_blur[annot_freq_idx, annot_time_idx]
-        )
+        if len(annot_freq_idx) > 0:
+            min_target = np.min(
+                annotation_target_blur[annot_freq_idx, annot_time_idx]
+            )
+        else:
+            min_target = 1.0
 
         annotation_target_blur = annotation_target_blur / min_target
         annotation_target_blur[annotation_target_blur > 1.0] = 1.0
@@ -222,8 +218,12 @@ def get_all_pitch_annotations(mtrack, compute_annot_activity=False):
 
 
 def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
-                           gaussian_blur):
-    hcqt = compute_hcqt(audio_fpath)
+                           gaussian_blur, precomputed_hcqt=None):
+    if precomputed_hcqt is None:
+        hcqt = compute_hcqt(audio_fpath)
+    else:
+        data = np.load(precomputed_hcqt, mmap_mode='r')
+        hcqt = data['data_in']
 
     freq_grid = get_freq_grid()
     time_grid = get_time_grid(len(hcqt[0][0]))
@@ -259,7 +259,7 @@ def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
             save_data(save_path, X, Y, f, t)
 
 
-def compute_melody1(mtrack, save_dir, gaussian_blur):
+def compute_melody1(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
     data = mtrack.melody1_annotation
     if data is None:
         print("    {} No melody 1 data".format(mtrack.track_id))
@@ -278,14 +278,15 @@ def compute_melody1(mtrack, save_dir, gaussian_blur):
             freqs = freqs[idx]
 
             X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, times, freqs, gaussian_blur
+                mtrack.mix_path, times, freqs, gaussian_blur,
+                precomputed_hcqt
             )
             save_data(save_path, X, Y, f, t)
         else:
             print("   {} already computed!".format(mtrack.track_id))
 
 
-def compute_melody2(mtrack, save_dir, gaussian_blur):
+def compute_melody2(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
     data = mtrack.melody2_annotation
     if data is None:
         print("    {} No melody 2 data".format(mtrack.track_id))
@@ -304,14 +305,15 @@ def compute_melody2(mtrack, save_dir, gaussian_blur):
             freqs = freqs[idx]
 
             X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, times, freqs, gaussian_blur
+                mtrack.mix_path, times, freqs, gaussian_blur,
+                precomputed_hcqt
             )
             save_data(save_path, X, Y, f, t)
         else:
             print("   {} already computed!".format(mtrack.track_id))
 
 
-def compute_melody3(mtrack, save_dir, gaussian_blur):
+def compute_melody3(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
     data = mtrack.melody3_annotation
     if data is None:
         print("   {} No melody 3 data".format(mtrack.track_id))
@@ -338,14 +340,16 @@ def compute_melody3(mtrack, save_dir, gaussian_blur):
             freq_list = freq_list[idx]
 
             X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, time_list, freq_list, gaussian_blur
+                mtrack.mix_path, time_list, freq_list, gaussian_blur,
+                precomputed_hcqt
             )
             save_data(save_path, X, Y, f, t)
         else:
             print("   {} already computed!".format(mtrack.track_id))
 
 
-def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
+def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur,
+                               precomputed_hcqt):
     save_path = os.path.join(
         save_dir, "{}_multif0_incomplete.npz".format(mtrack.track_id)
     )
@@ -358,7 +362,8 @@ def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
         if times is not None:
 
             X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, times, freqs, gaussian_blur
+                mtrack.mix_path, times, freqs, gaussian_blur,
+                precomputed_hcqt
             )
 
             save_data(save_path, X, Y, f, t)
@@ -443,18 +448,28 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
         print("   {} already computed!".format(mtrack.track_id))
 
 
-def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
+def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur
+                            precomputed_hcqt_path, ext='mel1'):
     print(mtrack.track_id)
+    if precomputed_hcqt_path is not None:
+        precomputed_hcqt = os.path.join(
+            precomputed_hcqt_path, '{}_{}.npz'.format(mtrack.track_id, ext)
+        )
+    else:
+        precomputed_hcqt = None
+
     if option == 'solo_pitch':
         compute_solo_pitch(mtrack, save_dir, gaussian_blur)
     elif option == 'melody1':
-        compute_melody1(mtrack, save_dir, gaussian_blur)
+        compute_melody1(mtrack, save_dir, gaussian_blur, precomputed_hcqt)
     elif option == 'melody2':
-        compute_melody2(mtrack, save_dir, gaussian_blur)
+        compute_melody2(mtrack, save_dir, gaussian_blur, precomputed_hcqt)
     elif option == 'melody3':
-        compute_melody3(mtrack, save_dir, gaussian_blur)
+        compute_melody3(mtrack, save_dir, gaussian_blur, precomputed_hcqt)
     elif option == 'multif0_incomplete':
-        compute_multif0_incomplete(mtrack, save_dir, gaussian_blur)
+        compute_multif0_incomplete(
+            mtrack, save_dir, gaussian_blur, precomputed_hcqt
+        )
     elif option == 'multif0_complete':
         compute_multif0_complete(mtrack, save_dir, gaussian_blur)
     else:
@@ -463,11 +478,8 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur):
 
 def main(args):
 
-    # mtracks = mdb.load_all_multitracks(
-    #     dataset_version=['V1', 'V2', 'EXTRA']
-    # )
     mtracks = mdb.load_all_multitracks(
-        dataset_version=['V1']
+        dataset_version=['V1', 'V2', 'EXTRA']
     )
 
     Parallel(n_jobs=args.n_jobs, verbose=5)(
@@ -492,6 +504,9 @@ if __name__ == "__main__":
     parser.add_argument("n_jobs",
                         type=int,
                         help="Number of jobs to run in parallel.")
+    parser.add_argument("precomputed_hcqt_path",
+                        type=str,
+                        help="Path to folder with hcqts precomputed")
     parser.add_argument('--blur-labels',
                         dest='gaussian_blur',
                         action='store_true')
