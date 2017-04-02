@@ -219,7 +219,7 @@ def get_all_pitch_annotations(mtrack, compute_annot_activity=False):
 
 def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
                            gaussian_blur, precomputed_hcqt=None):
-    if precomputed_hcqt is None:
+    if precomputed_hcqt is None or not os.path.exists(precomputed_hcqt):
         hcqt = compute_hcqt(audio_fpath)
     else:
         data = np.load(precomputed_hcqt, mmap_mode='r')
