@@ -484,7 +484,8 @@ def main(args):
 
     Parallel(n_jobs=args.n_jobs, verbose=5)(
         delayed(compute_features_mtrack)(
-            mtrack, args.save_dir, args.option, args.gaussian_blur
+            mtrack, args.save_dir, args.option, args.gaussian_blur,
+            args.precomputed_hcqt_path
         ) for mtrack in mtracks) 
 
     print("Done!")
