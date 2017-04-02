@@ -446,7 +446,7 @@ def main(args):
         dataset_version=['V1']
     )
 
-    Parallel(n_jobs=-1, verbose=5)(
+    Parallel(n_jobs=8, verbose=5)(
         delayed(compute_features_mtrack)(
             mtrack, args.save_dir, args.option, args.gaussian_blur
         ) for mtrack in mtracks) 
