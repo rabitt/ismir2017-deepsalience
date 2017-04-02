@@ -177,7 +177,7 @@ def create_filtered_stem(original_audio, output_path, annot_activation):
     return output_path
 
 
-def get_all_pitch_annotations(mtrack):
+def get_all_pitch_annotations(mtrack, compute_annot_activity=False):
     annot_times = []
     annot_freqs = []
     stems_used = []
@@ -188,9 +188,12 @@ def get_all_pitch_annotations(mtrack):
         if data is not None:
             annot = data
             stems_used.append(stem.stem_idx)
-            stem_annot_activity[stem.stem_idx] = get_annot_activation(
-                data, mtrack.duration
-            )
+            if compute_annot_activity:
+                stem_annot_activity[stem.stem_idx] = get_annot_activation(
+                    data, mtrack.duration
+                )
+            else:
+                stem_annot_activity[stem.stem_idx] = None
 
         elif data2 is not None:
             annot = data2
@@ -341,7 +344,9 @@ def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur):
     )
     if not os.path.exists(save_path):
 
-        times, freqs, _, _ = get_all_pitch_annotations(mtrack)
+        times, freqs, _, _ = get_all_pitch_annotations(
+            mtrack, compute_annot_activity=False
+        )
 
         if times is not None:
 
@@ -374,8 +379,20 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
             print("multitrack has stems with polyphonic instruments")
             return None
 
-        (times, freqs, stems_used,
-         stem_annot_activity) = get_all_pitch_annotations(mtrack)
+        multif0_mix_path = os.path.join(
+            save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
+        )
+
+        if os.path.exists(multif0_mix_path):
+            (times, freqs, stems_used,
+             stem_annot_activity) = get_all_pitch_annotations(
+                 mtrack, compute_annot_activity=False
+             )
+        else:
+            (times, freqs, stems_used,
+             stem_annot_activity) = get_all_pitch_annotations(
+                 mtrack, compute_annot_activity=True
+             )
 
         if times is not None:
             for i, stem in mtrack.stems.items():
@@ -385,29 +402,28 @@ def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
                 if unvoiced:
                     stems_used.append(i)
 
-            multif0_mix_path = os.path.join(
-                save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
-            )
-
             # stems that were manually annotated may not be fully annotated :(
             # silencing out any part of the stem that does not contain
             # annotations just to be safe
-            alternate_files = {}
-            for key in stem_annot_activity.keys():
-                new_stem_path = os.path.join(
-                    save_dir, "{}_STEM_{}_alt.wav".format(mtrack.track_id, key)
-                )
-                if not os.path.exists(new_stem_path):
-                    create_filtered_stem(
-                        mtrack.stems[key].audio_path, new_stem_path,
-                        stem_annot_activity[key]
-                    )
-                alternate_files[key] = new_stem_path
+            if not os.path.exists(multif0_mix_path):
 
-            mix.mix_multitrack(
-                mtrack, multif0_mix_path, alternate_files=alternate_files,
-                stem_indices=stems_used
-            )
+                alternate_files = {}
+                for key in stem_annot_activity.keys():
+                    new_stem_path = os.path.join(
+                        save_dir, "{}_STEM_{}_alt.wav".format(mtrack.track_id, key)
+                    )
+                    if not os.path.exists(new_stem_path):
+                        create_filtered_stem(
+                            mtrack.stems[key].audio_path, new_stem_path,
+                            stem_annot_activity[key]
+                        )
+                    alternate_files[key] = new_stem_path
+
+
+                mix.mix_multitrack(
+                    mtrack, multif0_mix_path, alternate_files=alternate_files,
+                    stem_indices=stems_used
+                )
 
             X, Y, f, t = get_input_output_pairs(
                 multif0_mix_path, times, freqs, gaussian_blur
@@ -447,7 +463,7 @@ def main(args):
         dataset_version=['V1']
     )
 
-    Parallel(n_jobs=16, verbose=5)(
+    Parallel(n_jobs=-1, verbose=5)(
         delayed(compute_features_mtrack)(
             mtrack, args.save_dir, args.option, args.gaussian_blur
         ) for mtrack in mtracks) 
