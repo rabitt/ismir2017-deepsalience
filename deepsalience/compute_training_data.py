@@ -11,7 +11,6 @@ import os
 from scipy.signal import upfirdn
 from scipy.ndimage import filters
 import sox
-import compute_training_data as C
 
 
 def get_hcqt_params():
@@ -43,7 +42,7 @@ def compute_hcqt(audio_fpath):
         )
         cqt_list.append(cqt)
         shapes.append(cqt.shape)
-
+    
     shapes_equal = [s == shapes[0] for s in shapes]
     if not all(shapes_equal):
         min_time = np.min([s[1] for s in shapes])
@@ -247,7 +246,7 @@ def save_data(save_path, prefix, X, Y, f, t):
         os.mkdir(input_path)
     if not os.path.exists(output_path):
         os.mkdir(output_path)
-
+        
     np.save(os.path.join(input_path, "{}_input.npy".format(prefix)), X.astype(np.float32))
     np.save(os.path.join(output_path, "{}_output.npy".format(prefix)), Y.astype(np.float32))
 
@@ -283,7 +282,7 @@ def compute_melody1(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
         print("    {} No melody 1 data".format(mtrack.track_id))
     else:
         prefix = "{}_mel1".format(mtrack.track_id)
-
+        
         input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
         output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
         if os.path.exists(input_path) and os.path.exists(output_path):
@@ -312,13 +311,13 @@ def compute_melody2(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
         print("    {} No melody 2 data".format(mtrack.track_id))
     else:
         prefix = "{}_mel2".format(mtrack.track_id)
-
+        
         input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
         output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
         if os.path.exists(input_path) and os.path.exists(output_path):
             print("    > already done!")
             return
-
+            
         annot = np.array(data).T
         times = annot[0]
         freqs = annot[1]
@@ -341,7 +340,7 @@ def compute_melody3(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
         print("   {} No melody 3 data".format(mtrack.track_id))
     else:
         prefix = "{}_mel3".format(mtrack.track_id)
-
+        
         input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
         output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
         if os.path.exists(input_path) and os.path.exists(output_path):
@@ -375,7 +374,7 @@ def compute_melody3(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
 def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur,
                                precomputed_hcqt):
     prefix = "{}_multif0_incomplete".format(mtrack.track_id)
-
+    
     input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
     output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
     if os.path.exists(input_path) and os.path.exists(output_path):
@@ -402,7 +401,7 @@ def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur,
 
 def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
     prefix = "{}_multif0_complete".format(mtrack.track_id)
-
+    
     input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
     output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
     if os.path.exists(input_path) and os.path.exists(output_path):
@@ -511,7 +510,7 @@ def main(args):
         delayed(compute_features_mtrack)(
             mtrack, args.save_dir, args.option, args.gaussian_blur,
             args.precomputed_hcqt_path
-        ) for mtrack in mtracks)
+        ) for mtrack in mtracks) 
 
     print("Done!")
 
