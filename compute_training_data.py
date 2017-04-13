@@ -16,12 +16,12 @@ import sox
 def get_hcqt_params():
     """Hack to always use the same parameters :)
     """
-    bins_per_octave = 120
-    n_octaves = 5
+    bins_per_octave = 60
+    n_octaves = 6
     harmonics = [0.5, 1, 2, 3, 4, 5]
     sr = 22050
     fmin = 32.7
-    hop_length = 128
+    hop_length = 256
     return bins_per_octave, n_octaves, harmonics, sr, fmin, hop_length
 
 
@@ -47,14 +47,12 @@ def compute_hcqt(audio_fpath):
     if not all(shapes_equal):
         min_time = np.min([s[1] for s in shapes])
         new_cqt_list = []
-        for i, cqt in enumerate(cqt_list):
-            new_cqt_list.append(cqt[:, :min_time])
-            cqt_list.pop(i)
+        for i in range(len(cqt_list)):
+            new_cqt_list.append(cqt_list[i][:, :min_time])
         cqt_list = new_cqt_list
 
-    log_hcqt = 20.0*np.log10(np.abs(np.array(cqt_list)) + 1.0)
-    log_hcqt = log_hcqt - np.min(log_hcqt)
-    log_hcqt = log_hcqt / np.max(log_hcqt)
+    log_hcqt = ((1.0/80.0) * librosa.core.amplitude_to_db(np.abs(np.array(cqt_list)), ref=np.max)) + 1.0
+
     return log_hcqt
 
 
@@ -112,7 +110,7 @@ def create_annotation_target(freq_grid, time_grid, annotation_times,
 
     if gaussian_blur:
         annotation_target_blur = filters.gaussian_filter1d(
-            annotation_target, 2, axis=0, mode='constant'
+            annotation_target, 1, axis=0, mode='constant'
         )
         if len(annot_freq_idx) > 0:
             min_target = np.min(
@@ -219,11 +217,16 @@ def get_all_pitch_annotations(mtrack, compute_annot_activity=False):
 
 def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
                            gaussian_blur, precomputed_hcqt=None):
+
     if precomputed_hcqt is None or not os.path.exists(precomputed_hcqt):
+        print("    > computing CQT for {}".format(os.path.basename(audio_fpath)))
         hcqt = compute_hcqt(audio_fpath)
     else:
-        data = np.load(precomputed_hcqt, mmap_mode='r')
-        hcqt = data['data_in']
+        print("    > using precomputed CQT for {}".format(os.path.basename(audio_fpath)))
+        hcqt = np.load(precomputed_hcqt, mmap_mode='r')
+
+    if hcqt.shape[0] != 6:
+        raise ValueError("hcqt doesnt have the right shape :( {}".format(hcqt.shape))
 
     freq_grid = get_freq_grid()
     time_grid = get_time_grid(len(hcqt[0][0]))
@@ -235,17 +238,31 @@ def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
     return hcqt, annot_target, freq_grid, time_grid
 
 
-def save_data(save_path, X, Y, f, t):
-    np.savez(save_path, data_in=X, data_out=Y, freq=f, time=t)
-    print("    Saved data to {}".format(save_path))
+def save_data(save_path, prefix, X, Y, f, t):
+
+    input_path = os.path.join(save_path, 'inputs')
+    output_path = os.path.join(save_path, 'outputs')
+    if not os.path.exists(input_path):
+        os.mkdir(input_path)
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+        
+    np.save(os.path.join(input_path, "{}_input.npy".format(prefix)), X.astype(np.float32))
+    np.save(os.path.join(output_path, "{}_output.npy".format(prefix)), Y.astype(np.float32))
+
+    print("    Saved data for {} to {}".format(prefix, save_path))
 
 
 def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
     for stem in mtrack.stems.values():
         data = stem.pitch_annotation
-        save_path = os.path.join(
-            save_dir, "{}_STEM_{}.npz".format(mtrack.track_id, stem.stem_id)
-        )
+        prefix = "{}_STEM_{}".format(mtrack.track_id, stem.stem_id)
+
+        input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
+        output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
+        if os.path.exists(input_path) and os.path.exists(output_path):
+            print("    > already done!")
+            continue
 
         if data is None:
             continue
@@ -256,7 +273,7 @@ def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
             X, Y, f, t = get_input_output_pairs(
                 stem.audio_path, annot[0], annot[1], gaussian_blur
             )
-            save_data(save_path, X, Y, f, t)
+            save_data(save_dir, prefix, X, Y, f, t)
 
 
 def compute_melody1(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
@@ -264,26 +281,28 @@ def compute_melody1(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
     if data is None:
         print("    {} No melody 1 data".format(mtrack.track_id))
     else:
-        save_path = os.path.join(
-            save_dir, "{}_mel1.npz".format(mtrack.track_id)
+        prefix = "{}_mel1".format(mtrack.track_id)
+        
+        input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
+        output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
+        if os.path.exists(input_path) and os.path.exists(output_path):
+            print("    > {} already done!".format(mtrack.track_id))
+            return
+
+        annot = np.array(data).T
+        times = annot[0]
+        freqs = annot[1]
+
+        idx = np.where(freqs != 0.0)[0]
+
+        times = times[idx]
+        freqs = freqs[idx]
+
+        X, Y, f, t = get_input_output_pairs(
+            mtrack.mix_path, times, freqs, gaussian_blur,
+            precomputed_hcqt
         )
-        if not os.path.exists(save_path):
-            annot = np.array(data).T
-            times = annot[0]
-            freqs = annot[1]
-
-            idx = np.where(freqs != 0.0)[0]
-
-            times = times[idx]
-            freqs = freqs[idx]
-
-            X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, times, freqs, gaussian_blur,
-                precomputed_hcqt
-            )
-            save_data(save_path, X, Y, f, t)
-        else:
-            print("   {} already computed!".format(mtrack.track_id))
+        save_data(save_dir, prefix, X, Y, f, t)
 
 
 def compute_melody2(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
@@ -291,26 +310,28 @@ def compute_melody2(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
     if data is None:
         print("    {} No melody 2 data".format(mtrack.track_id))
     else:
-        save_path = os.path.join(
-            save_dir, "{}_mel2.npz".format(mtrack.track_id)
+        prefix = "{}_mel2".format(mtrack.track_id)
+        
+        input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
+        output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
+        if os.path.exists(input_path) and os.path.exists(output_path):
+            print("    > already done!")
+            return
+            
+        annot = np.array(data).T
+        times = annot[0]
+        freqs = annot[1]
+
+        idx = np.where(freqs != 0.0)[0]
+
+        times = times[idx]
+        freqs = freqs[idx]
+
+        X, Y, f, t = get_input_output_pairs(
+            mtrack.mix_path, times, freqs, gaussian_blur,
+            precomputed_hcqt
         )
-        if not os.path.exists(save_path):
-            annot = np.array(data).T
-            times = annot[0]
-            freqs = annot[1]
-
-            idx = np.where(freqs != 0.0)[0]
-
-            times = times[idx]
-            freqs = freqs[idx]
-
-            X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, times, freqs, gaussian_blur,
-                precomputed_hcqt
-            )
-            save_data(save_path, X, Y, f, t)
-        else:
-            print("   {} already computed!".format(mtrack.track_id))
+        save_data(save_dir, prefix, X, Y, f, t)
 
 
 def compute_melody3(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
@@ -318,134 +339,137 @@ def compute_melody3(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
     if data is None:
         print("   {} No melody 3 data".format(mtrack.track_id))
     else:
-        save_path = os.path.join(
-            save_dir, "{}_mel3.npz".format(mtrack.track_id)
+        prefix = "{}_mel3".format(mtrack.track_id)
+        
+        input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
+        output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
+        if os.path.exists(input_path) and os.path.exists(output_path):
+            print("    > already done!")
+            return
+
+        annot = np.array(data).T
+        times = annot[0]
+        all_freqs = annot[1:]
+        time_list = []
+        freq_list = []
+        for i in range(len(all_freqs)):
+            time_list.extend(list(times))
+            freq_list.extend(list(all_freqs[i]))
+
+        time_list = np.array(time_list)
+        freq_list = np.array(freq_list)
+        idx = np.where(freq_list != 0.0)[0]
+
+        time_list = time_list[idx]
+        freq_list = freq_list[idx]
+
+        X, Y, f, t = get_input_output_pairs(
+            mtrack.mix_path, time_list, freq_list, gaussian_blur,
+            precomputed_hcqt
         )
-        if not os.path.exists(save_path):
+        save_data(save_dir, prefix, X, Y, f, t)
 
-            annot = np.array(data).T
-            times = annot[0]
-            all_freqs = annot[1:]
-            time_list = []
-            freq_list = []
-            for i in range(len(all_freqs)):
-                time_list.extend(list(times))
-                freq_list.extend(list(all_freqs[i]))
-
-            time_list = np.array(time_list)
-            freq_list = np.array(freq_list)
-            idx = np.where(freq_list != 0.0)[0]
-
-            time_list = time_list[idx]
-            freq_list = freq_list[idx]
-
-            X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, time_list, freq_list, gaussian_blur,
-                precomputed_hcqt
-            )
-            save_data(save_path, X, Y, f, t)
-        else:
-            print("   {} already computed!".format(mtrack.track_id))
 
 
 def compute_multif0_incomplete(mtrack, save_dir, gaussian_blur,
                                precomputed_hcqt):
-    save_path = os.path.join(
-        save_dir, "{}_multif0_incomplete.npz".format(mtrack.track_id)
-    )
-    if not os.path.exists(save_path):
+    prefix = "{}_multif0_incomplete".format(mtrack.track_id)
+    
+    input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
+    output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
+    if os.path.exists(input_path) and os.path.exists(output_path):
+        print("    > already done!")
+        return
 
-        times, freqs, _, _ = get_all_pitch_annotations(
-            mtrack, compute_annot_activity=False
+    times, freqs, _, _ = get_all_pitch_annotations(
+        mtrack, compute_annot_activity=False
+    )
+
+    if times is not None:
+
+        X, Y, f, t = get_input_output_pairs(
+            mtrack.mix_path, times, freqs, gaussian_blur,
+            precomputed_hcqt
         )
 
-        if times is not None:
-
-            X, Y, f, t = get_input_output_pairs(
-                mtrack.mix_path, times, freqs, gaussian_blur,
-                precomputed_hcqt
-            )
-
-            save_data(save_path, X, Y, f, t)
-
-        else:
-            print("    {} No multif0 data".format(mtrack.track_id))
+        save_data(save_dir, prefix, X, Y, f, t)
 
     else:
-        print("   {} already computed!".format(mtrack.track_id))
+        print("    {} No multif0 data".format(mtrack.track_id))
+
 
 
 def compute_multif0_complete(mtrack, save_dir, gaussian_blur):
-    save_path = os.path.join(
-        save_dir, "{}_multif0_complete.npz".format(mtrack.track_id)
+    prefix = "{}_multif0_complete".format(mtrack.track_id)
+    
+    input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
+    output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
+    if os.path.exists(input_path) and os.path.exists(output_path):
+        print("    > already done!")
+        return
+
+    bad_mtrack = False
+    for stem in mtrack.stems.values():
+        if stem.pitch_estimate_pyin is not None:
+            if 'p' in stem.f0_type:
+                bad_mtrack = True
+    if bad_mtrack:
+        print("multitrack has stems with polyphonic instruments")
+        return None
+
+    multif0_mix_path = os.path.join(
+        save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
     )
 
-    if not os.path.exists(save_path):
-
-        bad_mtrack = False
-        for stem in mtrack.stems.values():
-            if stem.pitch_estimate_pyin is not None:
-                if 'p' in stem.f0_type:
-                    bad_mtrack = True
-        if bad_mtrack:
-            print("multitrack has stems with polyphonic instruments")
-            return None
-
-        multif0_mix_path = os.path.join(
-            save_dir, "{}_multif0_MIX.wav".format(mtrack.track_id)
+    if os.path.exists(multif0_mix_path):
+        (times, freqs, stems_used,
+         stem_annot_activity) = get_all_pitch_annotations(
+            mtrack, compute_annot_activity=False
+        )
+    else:
+        (times, freqs, stems_used,
+         stem_annot_activity) = get_all_pitch_annotations(
+            mtrack, compute_annot_activity=True
         )
 
-        if os.path.exists(multif0_mix_path):
-            (times, freqs, stems_used,
-             stem_annot_activity) = get_all_pitch_annotations(
-                 mtrack, compute_annot_activity=False
-             )
-        else:
-            (times, freqs, stems_used,
-             stem_annot_activity) = get_all_pitch_annotations(
-                 mtrack, compute_annot_activity=True
-             )
+    if times is not None:
+        for i, stem in mtrack.stems.items():
+            unvoiced = all([
+                f0_type == 'u' for f0_type in stem.f0_type
+            ])
+            if unvoiced:
+                stems_used.append(i)
 
-        if times is not None:
-            for i, stem in mtrack.stems.items():
-                unvoiced = all([
-                    f0_type == 'u' for f0_type in stem.f0_type
-                ])
-                if unvoiced:
-                    stems_used.append(i)
+        # stems that were manually annotated may not be fully annotated :(
+        # silencing out any part of the stem that does not contain
+        # annotations just to be safe
+        if not os.path.exists(multif0_mix_path):
 
-            # stems that were manually annotated may not be fully annotated :(
-            # silencing out any part of the stem that does not contain
-            # annotations just to be safe
-            if not os.path.exists(multif0_mix_path):
-
-                alternate_files = {}
-                for key in stem_annot_activity.keys():
-                    new_stem_path = os.path.join(
-                        save_dir, "{}_STEM_{}_alt.wav".format(mtrack.track_id, key)
-                    )
-                    if not os.path.exists(new_stem_path):
-                        create_filtered_stem(
-                            mtrack.stems[key].audio_path, new_stem_path,
-                            stem_annot_activity[key]
-                        )
-                    alternate_files[key] = new_stem_path
-
-
-                mix.mix_multitrack(
-                    mtrack, multif0_mix_path, alternate_files=alternate_files,
-                    stem_indices=stems_used
+            alternate_files = {}
+            for key in stem_annot_activity.keys():
+                new_stem_path = os.path.join(
+                    save_dir, "{}_STEM_{}_alt.wav".format(mtrack.track_id, key)
                 )
+                if not os.path.exists(new_stem_path):
+                    create_filtered_stem(
+                        mtrack.stems[key].audio_path, new_stem_path,
+                        stem_annot_activity[key]
+                    )
+                alternate_files[key] = new_stem_path
 
-            X, Y, f, t = get_input_output_pairs(
-                multif0_mix_path, times, freqs, gaussian_blur
+
+            mix.mix_multitrack(
+                mtrack, multif0_mix_path, alternate_files=alternate_files,
+                stem_indices=stems_used
             )
-            save_data(save_path, X, Y, f, t)
 
-        else:
-            print("    {} No multif0 data".format(mtrack.track_id))
+        X, Y, f, t = get_input_output_pairs(
+            multif0_mix_path, times, freqs, gaussian_blur
+        )
+        save_data(save_dir, prefix, X, Y, f, t)
+
     else:
-        print("   {} already computed!".format(mtrack.track_id))
+        print("    {} No multif0 data".format(mtrack.track_id))
 
 
 def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur,
@@ -453,7 +477,7 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur,
     print(mtrack.track_id)
     if precomputed_hcqt_path != '':
         precomputed_hcqt = os.path.join(
-            precomputed_hcqt_path, '{}_{}.npz'.format(mtrack.track_id, ext)
+            precomputed_hcqt_path, '{}_{}_input.npy'.format(mtrack.track_id, ext)
         )
     else:
         precomputed_hcqt = None
@@ -496,7 +520,7 @@ if __name__ == "__main__":
         description="Generate feature files for multif0 learning.")
     parser.add_argument("save_dir",
                         type=str,
-                        help="Path to save npz files.")
+                        help="Path to save npy files.")
     parser.add_argument("option",
                         type=str,
                         help="Type of data to compute. " +
