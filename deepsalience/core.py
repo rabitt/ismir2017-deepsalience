@@ -30,26 +30,31 @@ def get_model_metrics(data_object, model, model_scores_path):
     valid_eval = model.evaluate_generator(validation_generator, 5000, max_q_size=10)
     test_eval = model.evaluate_generator(test_generator, 5000, max_q_size=10)
 
-    df = pandas.DataFrame([train_eval, valid_eval, test_eval])
+    df = pandas.DataFrame([train_eval, valid_eval, test_eval], index=['train', 'validation', 'test'])
+    print(df.describe())
     df.to_csv(model_scores_path)
 
 
 def get_all_multif0_metrics(test_files, model, save_dir, scores_path, score_summary_path):
     all_scores = []
     for test_pair in test_files:
+        pair_key = os.path.basename(test_pair[0])
+        print("    > {}".format(pair_key))
         save_path = os.path.join(
-            save_dir, os.path.basename(test_pair[0]).split('.')[0]
+            save_dir, "{}.pdf".format(os.path.basename(test_pair[0]).split('.')[0])
         )
         predicted_output, true_output = generate_prediction(
             test_pair, model, save_path=save_path
         )
 
         scores = compute_metrics(predicted_output, true_output)
+        scores['track'] = pair_key
         all_scores.append(scores)
 
     df = pandas.DataFrame(all_scores)
     df.to_csv(scores_path)
     df.describe().to_csv(score_summary_path)
+    print(df.describe())
 
 
 def get_paths(save_dir, save_key):
@@ -96,14 +101,15 @@ def plot_metrics_epochs(history, plot_save_path):
     plt.legend(['train', 'validate'], loc='upper left')
 
     plt.savefig(plot_save_path, format='pdf')
+    plt.close()
 
 
-def loss():
+def keras_loss():
     return bkld
 
 
-def metrics():
-    return ['mse', soft_binary_accuracy, 'fmeasure', 'precision', 'recall']
+def keras_metrics():
+    return ['mse', soft_binary_accuracy]
 
 
 def compute_metrics(predicted_mat, true_mat):
@@ -112,13 +118,16 @@ def compute_metrics(predicted_mat, true_mat):
     ref_idx = np.where(true_mat == 1)
     est_idx = np.where(predicted_mat > 0.5)
 
-    est_freqs = [[] for _ in range(times)]
+    est_freqs = [[] for _ in range(len(times))]
     for f, t in zip(est_idx[0], est_idx[1]):
         est_freqs[t].append(freqs[f])
 
-    ref_freqs = [[] for _ in range(times)]
+    ref_freqs = [[] for _ in range(len(times))]
     for f, t in zip(ref_idx[0], ref_idx[1]):
         ref_freqs[t].append(freqs[f])
+
+    est_freqs = [np.array(lst) for lst in est_freqs]
+    ref_freqs = [np.array(lst) for lst in ref_freqs]
 
     scores = mir_eval.multipitch.evaluate(times, ref_freqs, times, est_freqs)
     return scores
@@ -132,7 +141,6 @@ def generate_prediction(test_pair, model, save_path=None):
     t_slices = list(np.arange(0, n_t, 5000))
     output_list = []
     for t in t_slices:
-        print(t)
         output_list.append(
             model.predict(input_hcqt[:, :, t:t+5000, :])[0, :, :]
         )
@@ -164,6 +172,7 @@ def plot_prediction(input_hcqt, predicted_output, true_output, save_path):
     plt.colorbar()
 
     plt.savefig(save_path, format='pdf')
+    plt.close()
 
 
 def bkld(y_true, y_pred):
@@ -287,8 +296,7 @@ class Data(object):
         full_list = []
 
         for mtrack in mtracks:
-
-            globbed = get_file_paths([mtrack], self.data_path)
+            globbed = get_file_paths([mtrack.track_id], self.data_path)
             if len(globbed) == 0:
                 continue
 
