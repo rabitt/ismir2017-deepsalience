@@ -233,7 +233,8 @@ def patch_generator(fpath_in, fpath_out, input_patch_size, output_patch_size, ba
     t_shift = n_t_in - n_t_out
 
     while True:
-        f = 0 if n_f_in == n_freqs else np.random.randint(0, n_freqs - n_f_in)
+        # f = 0 if n_f_in == n_freqs else np.random.randint(0, n_freqs - n_f_in)
+        f = 0
         t = np.random.randint(0, n_times - n_t_in)
 
         x = __grab_patch_input(
