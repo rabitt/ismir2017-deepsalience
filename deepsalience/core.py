@@ -5,19 +5,105 @@ import numpy as np
 np.random.seed(1337)
 
 import glob
-import keras
 import medleydb as mdb
 from medleydb import utils
 import os
+import pandas
 import pescador
 from keras import backend as K
 import matplotlib.pyplot as plt
 import mir_eval
+import compute_training_data as C
 
 from tensorflow.python.client import device_lib
 device_lib.list_local_devices()
 
 RANDOM_STATE = 42
+
+
+def get_model_metrics(data_object, model, model_scores_path):
+    train_generator = data_object.get_train_generator()
+    validation_generator = data_object.get_validation_generator()
+    test_generator = data_object.get_test_generator()
+
+    train_eval = model.evaluate_generator(train_generator, 5000, max_q_size=10)
+    valid_eval = model.evaluate_generator(validation_generator, 5000, max_q_size=10)
+    test_eval = model.evaluate_generator(test_generator, 5000, max_q_size=10)
+
+    df = pandas.DataFrame([train_eval, valid_eval, test_eval])
+    df.to_csv(model_scores_path)
+
+
+def get_all_multif0_metrics(test_files, model, save_dir, scores_path, score_summary_path):
+    all_scores = []
+    for test_pair in test_files:
+        save_path = os.path.join(
+            save_dir, os.path.basename(test_pair[0]).split('.')[0]
+        )
+        predicted_output, true_output = generate_prediction(
+            test_pair, model, save_path=save_path
+        )
+
+        scores = compute_metrics(predicted_output, true_output)
+        all_scores.append(scores)
+
+    df = pandas.DataFrame(all_scores)
+    df.to_csv(scores_path)
+    df.describe().to_csv(score_summary_path)
+
+
+def get_paths(save_dir, save_key):
+    save_path = os.path.join(save_dir, save_key)
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+
+    model_save_path = os.path.join(save_path, "{}.pkl".format(save_key))
+    plot_save_path = os.path.join(save_path, "{}_loss.pdf".format(save_key))
+    model_scores_path = os.path.join(
+        save_path, "{}_model_scores.csv".format(save_key))
+    scores_path = os.path.join(save_path, "{}_scores.csv".format(save_key))
+    score_summary_path = os.path.join(
+        save_path, "{}_score_summary.csv".format(save_key))
+    return (save_path, model_save_path, plot_save_path,
+            model_scores_path, scores_path, score_summary_path)
+
+
+def plot_metrics_epochs(history, plot_save_path):
+    plt.figure(figsize=(15, 15))
+
+    plt.subplot(3, 1, 1)
+    plt.plot(history.history['mean_squared_error'])
+    plt.plot(history.history['val_mean_squared_error'])
+    plt.title('mean squared error')
+    plt.ylabel('mean squared error')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validate'], loc='upper left')
+
+    plt.subplot(3, 1, 2)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validate'], loc='upper left')
+
+    plt.subplot(3, 1, 3)
+    plt.plot(history.history['soft_binary_accuracy'])
+    plt.plot(history.history['val_soft_binary_accuracy'])
+    plt.title('soft_binary_accuracy')
+    plt.ylabel('soft_binary_accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validate'], loc='upper left')
+
+    plt.savefig(plot_save_path, format='pdf')
+
+
+def loss():
+    return bkld
+
+
+def metrics():
+    return ['mse', soft_binary_accuracy, 'fmeasure', 'precision', 'recall']
 
 
 def compute_metrics(predicted_mat, true_mat):
@@ -26,11 +112,11 @@ def compute_metrics(predicted_mat, true_mat):
     ref_idx = np.where(true_mat == 1)
     est_idx = np.where(predicted_mat > 0.5)
 
-    est_freqs = [[] for i in range(times)]
+    est_freqs = [[] for _ in range(times)]
     for f, t in zip(est_idx[0], est_idx[1]):
         est_freqs[t].append(freqs[f])
 
-    ref_freqs = [[] for i in range(times)]
+    ref_freqs = [[] for _ in range(times)]
     for f, t in zip(ref_idx[0], ref_idx[1]):
         ref_freqs[t].append(freqs[f])
 
@@ -47,12 +133,14 @@ def generate_prediction(test_pair, model, save_path=None):
     output_list = []
     for t in t_slices:
         print(t)
-        output_list.append(model.predict(input_hcqt[:, :, t:t+5000, :])[0, :, :])
+        output_list.append(
+            model.predict(input_hcqt[:, :, t:t+5000, :])[0, :, :]
+        )
 
     predicted_output = np.hstack(output_list)
 
     if save_path is not None:
-        plot_prediction(input_hcqt, predicted_output, save_path)
+        plot_prediction(input_hcqt, predicted_output, true_output, save_path)
 
     return predicted_output, true_output
 
@@ -81,12 +169,14 @@ def plot_prediction(input_hcqt, predicted_output, true_output, save_path):
 def bkld(y_true, y_pred):
     y_true = K.clip(y_true, K.epsilon(), 1.0 - K.epsilon())
     y_pred = K.clip(y_pred, K.epsilon(), 1.0 - K.epsilon())
-    return K.mean(K.mean(-1.0*y_true* K.log(y_pred) - (1.0 - y_true) * K.log(1.0 - y_pred), axis=-1), axis=-1)
+    return K.mean(K.mean(
+        -1.0*y_true* K.log(y_pred) - (1.0 - y_true) * K.log(1.0 - y_pred),
+        axis=-1), axis=-1)
 
 
 def soft_binary_accuracy(y_true, y_pred):
-    return K.mean(K.mean(K.equal(K.round(y_true), K.round(y_pred)),
-        axis=-1), axis=-1)
+    return K.mean(K.mean(
+        K.equal(K.round(y_true), K.round(y_pred)), axis=-1), axis=-1)
 
 
 def keras_generator(data_list, input_patch_size, output_patch_size,
@@ -153,7 +243,9 @@ def get_file_paths(mtrack_list, data_path):
             os.path.join(data_path, 'inputs', "{}*_input.npy".format(track_id))
         )
         output_path = glob.glob(
-            os.path.join(data_path, 'outputs', "{}*_output.npy".format(track_id))
+            os.path.join(
+                data_path, 'outputs', "{}*_output.npy".format(track_id)
+            )
         )
 
         if len(input_path) == 1 and len(output_path) == 1:
@@ -252,51 +344,3 @@ class Data(object):
             batch_size=self.batch_size
         )
 
-
-# class Model(object):
-
-#     def __init__(self, loss, input_shape, optimizer='sgd',
-#                  samples_per_epoch=102400, n_epochs=10, n_val_samples=1024):
-#         self.model = self._build_model()
-#         self.loss = loss
-#         self.input_shape = input_shape
-#         self.optimizer = optimizer
-#         self.samples_per_epoch = samples_per_epoch
-#         self.n_epochs = n_epochs
-#         self.n_val_samples = n_val_samples
-
-#     def model_definition(self):
-#         raise NotImplementedError
-
-#     def _build_model(self):
-#         model = self.model_definition()
-#         model.compile(loss=self.loss, optimizer=self.optimizer)
-#         return model
-
-#     def fit(self, train_generator, validation_generator):
-#         history = self.model.fit_generator(
-#             train_generator, self.samples_per_epoch, self.n_epochs, verbose=1,
-#             validation_data=validation_generator,
-#             n_val_samples=self.n_val_samples
-#         )
-#         return history
-
-#     def predict(self, test_data):
-#         n_harms, n_freqs, n_times = data_in.shape
-#         n_f, n_t = (20, 20)
-
-#         prediction = np.zeros((n_freqs, n_times))
-
-#         cqt_patch_generator = stride_cqt(data_in)
-
-#         for d in cqt_patch_generator:
-#             f = d['f']
-#             t = d['t']
-#             y_pred = model.predict(d['X'].reshape(1, n_f, n_t, n_harms)).reshape(n_f, n_t)
-#             prediction[f: f + n_f, t: t + n_t] = y_pred
-
-#         return prediction
-
-#     @property
-#     def id(self):
-#         pass

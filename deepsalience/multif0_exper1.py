@@ -1,7 +1,23 @@
 from __future__ import print_function
+
+import keras
+from keras.models import Model
+from keras.layers import Dense, Input, Reshape, Lambda
+from keras.layers.convolutional import Conv2D
+from keras import backend as K
+
+from tensorflow.python.client import device_lib
+device_lib.list_local_devices() 
+
 import medleydb as mdb
 import matplotlib.pyplot as plt
+import numpy as np
 import os
+import pandas
+
+np.random.seed(1337)  # for reproducibility
+
+RANDOM_STATE = 42
 
 import core
 
@@ -14,24 +30,21 @@ SAMPLES_PER_EPOCH = 512
 NB_EPOCHS = 100
 NB_VAL_SAMPLES = 1000
 
-
-SAVE_PATH = "/scratch/rmb456/multif0_ismir/saved_models"
 SAVE_KEY = os.path.basename(__file__).split('.')[0]
-MODEL_SAVE_PATH = os.path.join(SAVE_PATH, "{}.pkl".format(SAVE_KEY))
-PLOT_SAVE_PATH = os.path.join(SAVE_PATH, "{}_loss.pdf".format(SAVE_KEY))
-TEST_EXAMPLE_PATH = os.path.join(SAVE_PATH, SAVE_KEY)
+(SAVE_PATH, MODEL_SAVE_PATH, PLOT_SAVE_PATH,
+ MODEL_SCORES_PATH, SCORES_PATH, SCORE_SUMMARY_PATH
+) = core.get_paths("/scratch/rmb456/multif0_ismir/saved_models", SAVE_KEY)
 
 
 def main():
 
     ### DATA SETUP ###
-	dat = core.Data(
+    dat = core.Data(
         MTRACK_LIST, DATA_PATH, input_patch_size=INPUT_PATCH_SIZE,
         output_patch_size=OUTPUT_PATH_SIZE, batch_size=10
-	)
+    )
     train_generator = dat.get_train_generator()
     validation_generator = dat.get_validation_generator()
-    test_generator = dat.get_test_generator()
 
     ### DEFINE MODEL ###
     input_shape = (None, None, 6)
@@ -45,7 +58,7 @@ def main():
     predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y5)
 
     model = Model(inputs=inputs, outputs=predictions)
-    model.compile(loss=bkld, metrics=['mse', soft_binary_accuracy], optimizer='adam')
+    model.compile(loss=core.loss(), metrics=core.metrics(), optimizer='adam')
 
     print(model.summary(line_length=80))
 
@@ -64,48 +77,18 @@ def main():
     model.load_weights(MODEL_SAVE_PATH)
 
     ### Results plots ###
-    plt.figure(figsize=(15, 15))
-
-    plt.subplot(3, 1, 1)
-    plt.plot(history.history['mean_squared_error'])
-    plt.plot(history.history['val_mean_squared_error'])
-    plt.title('mean squared error')
-    plt.ylabel('mean squared error')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'validate'], loc='upper left')
-
-    plt.subplot(3, 1, 2)
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'validate'], loc='upper left')
-
-    plt.subplot(3, 1, 3)
-    plt.plot(history.history['soft_binary_accuracy'])
-    plt.plot(history.history['val_soft_binary_accuracy'])
-    plt.title('soft_binary_accuracy')
-    plt.ylabel('soft_binary_accuracy')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'validate'], loc='upper left')
-
-    plt.savefig(PLOT_SAVE_PATH, format='pdf')
+    print("plotting results...")
+    core.plot_metrics_epochs(history, PLOT_SAVE_PATH)
 
     ### Evaluate ###
-    test_eval = best_model.evaluate_generator(test_generator, 5000, max_q_size=10)
-    if not os.path.exists(TEST_EXAMPLE_PATH):
-        os.mkdir(TEST_EXAMPLE_PATH)
+    print("getting model metrics...")
+    core.get_model_metrics(dat, model, MODEL_SCORES_PATH)
 
-    for test_pair in dat.test_files:
-        save_path = os.path.join(TEST_EXAMPLE_PATH, os.path.basename(test_pair[0]).split('.')[0])
-        predicted_output, true_output = generate_prediction(test_pair, model, save_path=save_path)
+    print("getting multif0 metrics...")
+    core.get_all_multif0_metrics(dat.test_files, model, SAVE_PATH, SCORES_PATH, SCORE_SUMMARY_PATH)
 
-        scores = core.compute_metrics(predicted_output, true_output)
-        # TODO add to pandas dataframe
-
-    # TODO save pandas dataframe yay
-
+    print("done!")
+    print("Results saved to {}".format(SAVE_PATH))
 
 if __name__ == '__main__':
-	main()
+    main()
