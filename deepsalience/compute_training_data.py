@@ -503,7 +503,7 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur,
 def main(args):
 
     mtracks = mdb.load_all_multitracks(
-        dataset_version=['V1', 'V2', 'EXTRA']
+        dataset_version=['V1', 'V2', 'EXTRA', 'BACH10']
     )
 
     Parallel(n_jobs=args.n_jobs, verbose=5)(
