@@ -1,98 +1,276 @@
 """Core data and model architecture classes
 """
+from __future__ import print_function
+import numpy as np
+np.random.seed(1337)
+
 import glob
-import keras
 import medleydb as mdb
 from medleydb import utils
-import numpy as np
 import os
+import pandas
 import pescador
+from keras import backend as K
+import matplotlib.pyplot as plt
+import mir_eval
+import compute_training_data as C
 
+from tensorflow.python.client import device_lib
+device_lib.list_local_devices()
 
 RANDOM_STATE = 42
 
 
-def keras_generator(data_list, patch_size=(20, 20), with_replacement=True,
-                    batch_size=1024):
+def get_model_metrics(data_object, model, model_scores_path):
+    train_generator = data_object.get_train_generator()
+    validation_generator = data_object.get_validation_generator()
+    test_generator = data_object.get_test_generator()
+
+    train_eval = model.evaluate_generator(train_generator, 5000, max_q_size=10)
+    valid_eval = model.evaluate_generator(validation_generator, 5000, max_q_size=10)
+    test_eval = model.evaluate_generator(test_generator, 5000, max_q_size=10)
+
+    df = pandas.DataFrame([train_eval, valid_eval, test_eval])
+    df.to_csv(model_scores_path)
+
+
+def get_all_multif0_metrics(test_files, model, save_dir, scores_path, score_summary_path):
+    all_scores = []
+    for test_pair in test_files:
+        save_path = os.path.join(
+            save_dir, os.path.basename(test_pair[0]).split('.')[0]
+        )
+        predicted_output, true_output = generate_prediction(
+            test_pair, model, save_path=save_path
+        )
+
+        scores = compute_metrics(predicted_output, true_output)
+        all_scores.append(scores)
+
+    df = pandas.DataFrame(all_scores)
+    df.to_csv(scores_path)
+    df.describe().to_csv(score_summary_path)
+
+
+def get_paths(save_dir, save_key):
+    save_path = os.path.join(save_dir, save_key)
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+
+    model_save_path = os.path.join(save_path, "{}.pkl".format(save_key))
+    plot_save_path = os.path.join(save_path, "{}_loss.pdf".format(save_key))
+    model_scores_path = os.path.join(
+        save_path, "{}_model_scores.csv".format(save_key))
+    scores_path = os.path.join(save_path, "{}_scores.csv".format(save_key))
+    score_summary_path = os.path.join(
+        save_path, "{}_score_summary.csv".format(save_key))
+    return (save_path, model_save_path, plot_save_path,
+            model_scores_path, scores_path, score_summary_path)
+
+
+def plot_metrics_epochs(history, plot_save_path):
+    plt.figure(figsize=(15, 15))
+
+    plt.subplot(3, 1, 1)
+    plt.plot(history.history['mean_squared_error'])
+    plt.plot(history.history['val_mean_squared_error'])
+    plt.title('mean squared error')
+    plt.ylabel('mean squared error')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validate'], loc='upper left')
+
+    plt.subplot(3, 1, 2)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validate'], loc='upper left')
+
+    plt.subplot(3, 1, 3)
+    plt.plot(history.history['soft_binary_accuracy'])
+    plt.plot(history.history['val_soft_binary_accuracy'])
+    plt.title('soft_binary_accuracy')
+    plt.ylabel('soft_binary_accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'validate'], loc='upper left')
+
+    plt.savefig(plot_save_path, format='pdf')
+
+
+def loss():
+    return bkld
+
+
+def metrics():
+    return ['mse', soft_binary_accuracy, 'fmeasure', 'precision', 'recall']
+
+
+def compute_metrics(predicted_mat, true_mat):
+    freqs = C.get_freq_grid()
+    times = C.get_time_grid(predicted_mat.shape[1])
+    ref_idx = np.where(true_mat == 1)
+    est_idx = np.where(predicted_mat > 0.5)
+
+    est_freqs = [[] for _ in range(times)]
+    for f, t in zip(est_idx[0], est_idx[1]):
+        est_freqs[t].append(freqs[f])
+
+    ref_freqs = [[] for _ in range(times)]
+    for f, t in zip(ref_idx[0], ref_idx[1]):
+        ref_freqs[t].append(freqs[f])
+
+    scores = mir_eval.multipitch.evaluate(times, ref_freqs, times, est_freqs)
+    return scores
+
+
+def generate_prediction(test_pair, model, save_path=None):
+    true_output = np.load(test_pair[1])
+    input_hcqt = np.load(test_pair[0]).transpose(1, 2, 0)[np.newaxis, :, :, :]
+
+    n_t = input_hcqt.shape[2]
+    t_slices = list(np.arange(0, n_t, 5000))
+    output_list = []
+    for t in t_slices:
+        print(t)
+        output_list.append(
+            model.predict(input_hcqt[:, :, t:t+5000, :])[0, :, :]
+        )
+
+    predicted_output = np.hstack(output_list)
+
+    if save_path is not None:
+        plot_prediction(input_hcqt, predicted_output, true_output, save_path)
+
+    return predicted_output, true_output
+
+
+def plot_prediction(input_hcqt, predicted_output, true_output, save_path):
+    plt.figure(figsize=(15, 15))
+
+    plt.subplot(3, 1, 1)
+    plt.imshow(input_hcqt[0, :, :, 1], origin='lower')
+    plt.axis('auto')
+    plt.colorbar()
+
+    plt.subplot(3, 1, 2)
+    plt.imshow(predicted_output, origin='lower')
+    plt.axis('auto')
+    plt.colorbar()
+
+    plt.subplot(3, 1, 3)
+    plt.imshow(true_output, origin='lower')
+    plt.axis('auto')
+    plt.colorbar()
+
+    plt.savefig(save_path, format='pdf')
+
+
+def bkld(y_true, y_pred):
+    y_true = K.clip(y_true, K.epsilon(), 1.0 - K.epsilon())
+    y_pred = K.clip(y_pred, K.epsilon(), 1.0 - K.epsilon())
+    return K.mean(K.mean(
+        -1.0*y_true* K.log(y_pred) - (1.0 - y_true) * K.log(1.0 - y_pred),
+        axis=-1), axis=-1)
+
+
+def soft_binary_accuracy(y_true, y_pred):
+    return K.mean(K.mean(
+        K.equal(K.round(y_true), K.round(y_pred)), axis=-1), axis=-1)
+
+
+def keras_generator(data_list, input_patch_size, output_patch_size,
+                    with_replacement=True,
+                    batch_size=32):
+
     streams = []
-    for fpath in data_list:
+    for fpath_in, fpath_out in data_list:
         streams.append(
             pescador.Streamer(
-                patch_generator, fpath, patch_size=patch_size
+                patch_generator, fpath_in, fpath_out,
+                input_patch_size=input_patch_size,
+                output_patch_size=output_patch_size,
+                batch_size=batch_size
             )
         )
 
     stream_mux = pescador.Mux(
-        streams, 2, with_replacement=with_replacement, lam=None
+        streams, 10, with_replacement=with_replacement, lam=500
     )
 
-    batch_generator = pescador.buffer_batch(stream_mux.generate(), batch_size)
-
-    for batch in batch_generator:
-        yield (batch['X'], batch['Y'])
+    for batch in stream_mux.tuples('X', 'Y'):
+        yield batch
 
 
 def __grab_patch_output(f, t, n_f, n_t, y_data):
-    return y_data[f: f + n_f, t: t + n_t].reshape(1, n_f, n_t)
+    return y_data[f: f + n_f, t: t + n_t][np.newaxis, :, :]
 
 
 def __grab_patch_input(f, t, n_f, n_t, n_harms, x_data):
     return np.transpose(
         x_data[:, f: f + n_f, t: t + n_t], (1, 2, 0)
-    ).reshape(1, n_f, n_t, n_harms)
+    )[np.newaxis, :, :, :]
 
 
-def patch_generator(fpath, patch_size):
-    data = np.load(fpath, mmap_mode='r')
-    n_harms, n_freqs, n_times = data['data_in'].shape
-    n_f, n_t = patch_size
+def patch_generator(fpath_in, fpath_out, input_patch_size, output_patch_size, batch_size):
+    data_in = np.load(fpath_in)
+    data_out = np.load(fpath_out)
+
+    n_harms, n_freqs, n_times = data_in.shape
+    n_f_in, n_t_in = input_patch_size
+    n_f_out, n_t_out = output_patch_size
+
+    f_shift = n_f_in - n_f_out
+    t_shift = n_t_in - n_t_out
 
     while True:
-        f = np.random.randint(0, n_freqs - n_f)
-        t = np.random.randint(0, n_times - n_t)
-        x = __grab_patch_input(f, t, n_f, n_t, n_harms, data['data_in'])
-        y = __grab_patch_output(f, t, n_f, n_t, data['data_out'])
+        f = 0 if n_f_in == n_freqs else np.random.randint(0, n_freqs - n_f_in)
+        t = np.random.randint(0, n_times - n_t_in)
+
+        x = __grab_patch_input(
+            f, t, n_f_in, n_t_in, n_harms, data_in
+        )
+        y = __grab_patch_output(
+            f + f_shift, t + t_shift, n_f_out, n_t_out, data_out
+        )
         yield dict(X=x, Y=y)
-
-
-def stride_tf(fpath, patch_size):
-    data = np.load(fpath, mmap_mode='r')
-    n_harms, n_freqs, n_times = data['data_in'].shape
-    n_f, n_t = patch_size
-
-    f_indices = np.arange(0, n_freqs - n_f, n_f)
-    t_indices = np.arange(0, n_times - n_t, n_t)
-
-    for f in f_indices:
-        for t in t_indices:
-            x = __grab_patch_input(f, t, n_f, n_t, n_harms, data['data_in'])
-            y = __grab_patch_output(f, t, n_f, n_t, data['data_out'])
-            yield dict(X=x, Y=y, t=t, f=f)
 
 
 def get_file_paths(mtrack_list, data_path):
     file_paths = []
     for track_id in mtrack_list:
-        file_paths.extend(
-            glob.glob(os.path.join(data_path, "{}*.npz".format(track_id)))
+        input_path = glob.glob(
+            os.path.join(data_path, 'inputs', "{}*_input.npy".format(track_id))
         )
+        output_path = glob.glob(
+            os.path.join(
+                data_path, 'outputs', "{}*_output.npy".format(track_id)
+            )
+        )
+
+        if len(input_path) == 1 and len(output_path) == 1:
+            input_path = input_path[0]
+            output_path = output_path[0]
+            file_paths.append((input_path, output_path))
+
     return file_paths
 
 
 class Data(object):
 
-    def __init__(self, mtrack_list, data_path, patch_size=(20, 20),
-                 batch_size=1024):
+    def __init__(self, mtrack_list, data_path, input_patch_size,
+                 output_patch_size, batch_size):
 
         self.mtrack_list = mtrack_list
-        self.patch_size = patch_size
+        self.input_patch_size = input_patch_size
+        self.output_patch_size = output_patch_size
         self.batch_size = batch_size
+
+        self.data_path = data_path
 
         (self.train_set,
          self.validation_set,
          self.test_set) = self._train_val_test_split()
-
-        self.data_path = data_path
 
         self.train_files = get_file_paths(self.train_set, self.data_path)
         self.validation_files = get_file_paths(
@@ -102,12 +280,26 @@ class Data(object):
 
     def _train_val_test_split(self):
         mtracks = mdb.load_multitracks(self.mtrack_list)
-        test_potentials = [
-            m.track_id for m in mtracks if m.dataset_version == 'V1'
-        ]
-        all_others = [
-            m.track_id for m in mtracks if m.dataset_version != 'V1'
-        ]
+
+        test_potentials = []
+        test_only = []
+        all_others = []
+        full_list = []
+
+        for mtrack in mtracks:
+
+            globbed = get_file_paths([mtrack], self.data_path)
+            if len(globbed) == 0:
+                continue
+
+            full_list.append(mtrack.track_id)
+
+            if mtrack.dataset_version == 'V1':
+                test_potentials.append(mtrack.track_id)
+            elif mtrack.dataset_version == 'BACH10':
+                test_only.append(mtrack.track_id)
+            else:
+                all_others.append(mtrack.track_id)
 
         split1 = utils.artist_conditional_split(
             trackid_list=test_potentials, test_size=0.2,
@@ -115,6 +307,7 @@ class Data(object):
         )
 
         test_set = split1[0]['test']
+        test_set.extend(test_only)
         remaining_tracks = split1[0]['train'] + all_others
 
         split2 = utils.artist_conditional_split(
@@ -129,67 +322,25 @@ class Data(object):
 
     def get_train_generator(self):
         return keras_generator(
-            self.train_files, patch_size=self.patch_size,
+            self.train_files,
+            input_patch_size=self.input_patch_size,
+            output_patch_size=self.output_patch_size,
             batch_size=self.batch_size
         )
 
     def get_validation_generator(self):
         return keras_generator(
-            self.validation_files, patch_size=self.patch_size,
+            self.validation_files,
+            input_patch_size=self.input_patch_size,
+            output_patch_size=self.output_patch_size,
             batch_size=self.batch_size
         )
 
     def get_test_generator(self):
         return keras_generator(
-            self.test_files, patch_size=self.patch_size,
+            self.test_files,
+            input_patch_size=self.input_patch_size,
+            output_patch_size=self.output_patch_size,
             batch_size=self.batch_size
         )
 
-
-class Model(object):
-
-    def __init__(self, loss, input_shape, optimizer='sgd',
-                 samples_per_epoch=102400, n_epochs=10, n_val_samples=1024):
-        self.model = self._build_model()
-        self.loss = loss
-        self.input_shape = input_shape
-        self.optimizer = optimizer
-        self.samples_per_epoch = samples_per_epoch
-        self.n_epochs = n_epochs
-        self.n_val_samples = n_val_samples
-
-    def model_definition(self):
-        raise NotImplementedError
-
-    def _build_model(self):
-        model = self.model_definition()
-        model.compile(loss=self.loss, optimizer=self.optimizer)
-        return model
-
-    def fit(self, train_generator, validation_generator):
-        history = self.model.fit_generator(
-            train_generator, self.samples_per_epoch, self.n_epochs, verbose=1,
-            validation_data=validation_generator,
-            n_val_samples=self.n_val_samples
-        )
-        return history
-
-    def predict(self, test_data):
-        n_harms, n_freqs, n_times = data_in.shape
-        n_f, n_t = (20, 20)
-
-        prediction = np.zeros((n_freqs, n_times))
-
-        cqt_patch_generator = stride_cqt(data_in)
-
-        for d in cqt_patch_generator:
-            f = d['f']
-            t = d['t']
-            y_pred = model.predict(d['X'].reshape(1, n_f, n_t, n_harms)).reshape(n_f, n_t)
-            prediction[f: f + n_f, t: t + n_t] = y_pred
-
-        return prediction
-
-    @property
-    def id(self):
-        pass
