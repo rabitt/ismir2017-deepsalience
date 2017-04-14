@@ -1,21 +1,23 @@
 from __future__ import print_function
 
+from tensorflow.python.client import device_lib
+print(device_lib.list_local_devices())
+
+import numpy as np
+np.random.seed(1337)
+
 import keras
 from keras.models import Model
 from keras.layers import Dense, Input, Reshape, Lambda
 from keras.layers.convolutional import Conv2D
 from keras import backend as K
 
-from tensorflow.python.client import device_lib
-device_lib.list_local_devices() 
-
 import medleydb as mdb
 import matplotlib.pyplot as plt
-import numpy as np
+
 import os
 import pandas
 
-np.random.seed(1337)  # for reproducibility
 
 RANDOM_STATE = 42
 
@@ -59,7 +61,7 @@ def main():
 
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(
-        loss=core.keras_loss(), metrics=core.keras_metrics(), optimizer='adam')
+        loss=core.bkld(), metrics=['mse', core.soft_binary_accuracy], optimizer='adam')
 
     print(model.summary(line_length=80))
 
