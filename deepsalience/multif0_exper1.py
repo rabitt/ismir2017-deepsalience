@@ -61,7 +61,7 @@ def main():
 
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(
-        loss=core.bkld(), metrics=['mse', core.soft_binary_accuracy], optimizer='adam')
+        loss=core.bkld, metrics=['mse', core.soft_binary_accuracy], optimizer='adam')
 
     print(model.summary(line_length=80))
 
