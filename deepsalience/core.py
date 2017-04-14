@@ -3,14 +3,15 @@
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)
-
+from keras import backend as K
+import pescador
+import keras
 import glob
 import medleydb as mdb
 from medleydb import utils
 import os
 import pandas
-import pescador
-from keras import backend as K
+
 import matplotlib.pyplot as plt
 import mir_eval
 import compute_training_data as C
@@ -31,7 +32,7 @@ def get_model_metrics(data_object, model, model_scores_path):
     test_eval = model.evaluate_generator(test_generator, 5000, max_q_size=10)
 
     df = pandas.DataFrame([train_eval, valid_eval, test_eval], index=['train', 'validation', 'test'])
-    print(df.describe())
+    print(df)
     df.to_csv(model_scores_path)
 
 
