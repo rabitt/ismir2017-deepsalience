@@ -1,6 +1,11 @@
 """Core data and model architecture classes
 """
 from __future__ import print_function
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 import numpy as np
 np.random.seed(1337)
 from keras import backend as K
@@ -12,7 +17,7 @@ from medleydb import utils
 import os
 import pandas
 
-import matplotlib.pyplot as plt
+
 import mir_eval
 import compute_training_data as C
 

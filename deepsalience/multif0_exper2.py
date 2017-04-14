@@ -3,6 +3,10 @@ from __future__ import print_function
 from tensorflow.python.client import device_lib
 print(device_lib.list_local_devices())
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 import numpy as np
 np.random.seed(1337)
 
@@ -13,10 +17,10 @@ from keras.layers.convolutional import Conv2D
 from keras import backend as K
 
 import medleydb as mdb
-import matplotlib.pyplot as plt
-
 import os
 import pandas
+
+
 RANDOM_STATE = 42
 
 import core
@@ -63,16 +67,17 @@ def main():
 
     print(model.summary(line_length=80))
 
-    ### FIT MODEL ###
-    history = model.fit_generator(
-        train_generator, SAMPLES_PER_EPOCH, epochs=NB_EPOCHS, verbose=1,
-        validation_data=validation_generator, validation_steps=NB_VAL_SAMPLES,
-        callbacks=[
-            keras.callbacks.ModelCheckpoint(MODEL_SAVE_PATH, save_best_only=True, verbose=1),
-            keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
-            keras.callbacks.EarlyStopping(patience=15, verbose=0)
-        ]
-    )
+    if not os.path.exists(MODEL_SAVE_PATH):
+        ### FIT MODEL ###
+        history = model.fit_generator(
+            train_generator, SAMPLES_PER_EPOCH, epochs=NB_EPOCHS, verbose=1,
+            validation_data=validation_generator, validation_steps=NB_VAL_SAMPLES,
+            callbacks=[
+                keras.callbacks.ModelCheckpoint(MODEL_SAVE_PATH, save_best_only=True, verbose=1),
+                keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
+                keras.callbacks.EarlyStopping(patience=15, verbose=0)
+            ]
+        )
 
     ### load best weights ###
     model.load_weights(MODEL_SAVE_PATH)
