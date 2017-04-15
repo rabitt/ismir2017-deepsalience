@@ -26,7 +26,7 @@ RANDOM_STATE = 42
 import core
 
 DATA_PATH = "/scratch/rmb456/multif0_ismir2017/training_data_with_blur/multif0_complete/"
-MTRACK_LIST = mdb.TRACK_LIST_V1 + mdb.TRACK_LIST_V2 + mdb.TRACK_LIST_EXTRA# + mdb.TRACK_LIST_BACH10
+MTRACK_LIST = mdb.TRACK_LIST_V1 + mdb.TRACK_LIST_V2 + mdb.TRACK_LIST_EXTRA
 INPUT_PATCH_SIZE = (360, 50)
 OUTPUT_PATH_SIZE = (360, 50)
 

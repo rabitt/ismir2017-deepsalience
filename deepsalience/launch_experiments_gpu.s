@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=6:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=50GB
 #SBATCH -p gpu 
 #SBATCH --gres=gpu:1
@@ -20,23 +20,23 @@ unset XDG_RUNTIME_DIR
 
 cd ~/repos/multif0/deepsalience
 
-#echo "Running Experiment 1"
-#python multif0_exper1.py
-#echo "Running Experiment 2"
-#python multif0_exper2.py
-#echo "Running Experiment 3"
-#python multif0_exper3.py
+echo "Running Experiment 1"
+python multif0_exper1_2.py
+echo "Running Experiment 2"
+python multif0_exper2_2.py
+echo "Running Experiment 3"
+python multif0_exper3_2.py
 echo "Running Experiment 4"
-python multif0_exper4.py
-# echo "Running Experiment 5"
-# python multif0_exper5.py
-# echo "Running Experiment 6"
-# python multif0_exper6.py
-# echo "Running Experiment 7"
-# python multif0_exper7.py
+python multif0_exper4_2.py
+echo "Running Experiment 5"
+python multif0_exper5_2.py
+echo "Running Experiment 6"
+python multif0_exper6_2.py
+echo "Running Experiment 7"
+python multif0_exper7_2.py
 echo "Running Experiment 8"
-python multif0_exper8.py
+python multif0_exper8_2.py
 echo "Running Experiment 9"
-python multif0_exper9.py
+python multif0_exper9_2.py
 echo "Running Experiment 10"
-python multif0_exper10.py
+python multif0_exper10_2.py
