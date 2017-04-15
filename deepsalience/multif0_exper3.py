@@ -91,8 +91,8 @@ def main():
     print("getting multif0 metrics...")
     core.get_all_multif0_metrics(dat.test_files, model, SAVE_PATH, SCORES_PATH, SCORE_SUMMARY_PATH)
 
-    bach10_files = C.get_file_paths(mdb.TRACK_LIST_BACH10, dat.data_path)
-    C.get_all_multif0_metrics(
+    bach10_files = core.get_file_paths(mdb.TRACK_LIST_BACH10, dat.data_path)
+    core.get_all_multif0_metrics(
         bach10_files, model,
         SAVE_PATH,
         os.path.join(SAVE_PATH, "bach10_scores.csv"),
