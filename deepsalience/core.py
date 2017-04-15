@@ -164,8 +164,11 @@ def generate_prediction(test_pair, model, save_path=None):
         freqs = C.get_freq_grid()
         times = C.get_time_grid(predicted_output.shape[1])
         fs = 16000
-        y_synth = mir_eval.sonify.time_frequency(predicted_output, freqs, times, fs)
-        librosa.output.write_wav("{}.wav".format(save_path), y_synth, fs, norm=True)
+	try:
+            y_synth = mir_eval.sonify.time_frequency(predicted_output, freqs, times, fs)
+            librosa.output.write_wav("{}.wav".format(save_path), y_synth, fs, norm=True)
+	except:
+	    print("    > unable to synthesize {}".format(save_path))
 
     return predicted_output, true_output
 
