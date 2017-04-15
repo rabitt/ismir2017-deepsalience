@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-#SBATCH --job-name=multif0_exper
+#SBATCH --job-name=phl_sucks
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=4:00:00
+#SBATCH --time=5:00:00
 #SBATCH --mem=50GB
 #SBATCH -p gpu 
 #SBATCH --gres=gpu:1
@@ -26,3 +26,11 @@ echo "Running Experiment 2"
 python multif0_exper2.py
 echo "Running Experiment 3"
 python multif0_exper3.py
+echo "Running Experiment 4"
+python multif0_exper4.py
+echo "Running Experiment 5"
+python multif0_exper5.py
+echo "Running Experiment 6"
+python multif0_exper6.py
+echo "Running Experiment 7"
+python multif0_exper7.py

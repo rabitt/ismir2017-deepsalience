@@ -26,7 +26,7 @@ RANDOM_STATE = 42
 import core
 
 DATA_PATH = "/scratch/rmb456/multif0_ismir2017/training_data_with_blur/multif0_complete/"
-MTRACK_LIST = mdb.TRACK_LIST_V1 + mdb.TRACK_LIST_V2 + mdb.TRACK_LIST_EXTRA# + mdb.TRACK_LIST_BACH10
+MTRACK_LIST = mdb.TRACK_LIST_V1 + mdb.TRACK_LIST_V2 + mdb.TRACK_LIST_EXTRA #+ mdb.TRACK_LIST_BACH10
 INPUT_PATCH_SIZE = (360, 50)
 OUTPUT_PATH_SIZE = (360, 50)
 
@@ -54,12 +54,14 @@ def main():
     input_shape = (None, None, 6)
     inputs = Input(shape=input_shape)
 
-    y1 = Conv2D(256, (5, 5), padding='same', activation='relu', name='bendy1')(inputs)
-    y2 = Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy2')(y1)
-    y3 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy1')(y2)
-    y4 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy2')(y3)
-    y5 = Conv2D(1, (1, 1), padding='same', activation='sigmoid', name='squishy')(y4)
-    predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y5)
+    y1 = Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy1')(inputs)
+    y2 = Conv2D(8, (360, 1), padding='same', activation='relu', name='distribution')(y1)
+    y3 = Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy2')(y2)
+    y4 = Conv2D(16, (60, 3), padding='same', activation='relu', name='deharm')(y3)
+    y5 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy1')(y4)
+    y6 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy2')(y5)
+    y7 = Conv2D(1, (1, 1), padding='same', activation='sigmoid', name='squishy')(y6)
+    predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y7)
 
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(
