@@ -26,7 +26,7 @@ RANDOM_STATE = 42
 import core
 
 DATA_PATH = "/scratch/rmb456/multif0_ismir2017/training_data_with_blur/multif0_complete/"
-MTRACK_LIST = mdb.TRACK_LIST_V1 + mdb.TRACK_LIST_V2 + mdb.TRACK_LIST_EXTRA + mdb.TRACK_LIST_BACH10
+MTRACK_LIST = mdb.TRACK_LIST_V1 + mdb.TRACK_LIST_V2 + mdb.TRACK_LIST_EXTRA# + mdb.TRACK_LIST_BACH10
 INPUT_PATCH_SIZE = (360, 50)
 OUTPUT_PATH_SIZE = (360, 50)
 
@@ -93,6 +93,13 @@ def main():
 
     print("getting multif0 metrics...")
     core.get_all_multif0_metrics(dat.test_files, model, SAVE_PATH, SCORES_PATH, SCORE_SUMMARY_PATH)
+
+    bach10_files = get_file_paths(mdb.TRACK_LIST_BACH10, dat.data_path)
+    C.get_all_multif0_metrics(
+        bach10_files, model,
+        SAVE_PATH,
+        os.path.join(SAVE_PATH, "bach10_scores.csv"),
+        os.path.join(SAVE_PATH, "bach10_score_summary.csv"), create_pred=True)
 
     print("done!")
     print("Results saved to {}".format(SAVE_PATH))
