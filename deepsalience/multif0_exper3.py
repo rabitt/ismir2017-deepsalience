@@ -55,9 +55,9 @@ def main():
     inputs = Input(shape=input_shape)
 
     y1 = Conv2D(256, (5, 5), padding='same', activation='relu', name='bendy1')(inputs)
-    y4 = Conv2D(128, (3, 3), padding='same', activation='relu', name='smoothy2')(y3)
-    y5 = Conv2D(1, (1, 1), padding='same', activation='sigmoid', name='squishy')(y4)
-    predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y5)
+    y2 = Conv2D(128, (3, 3), padding='same', activation='relu', name='smoothy2')(y1)
+    y3 = Conv2D(1, (1, 1), padding='same', activation='sigmoid', name='squishy')(y2)
+    predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y3)
 
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(
@@ -65,17 +65,17 @@ def main():
 
     print(model.summary(line_length=80))
 
-    if not os.path.exists(MODEL_SAVE_PATH):
-        ### FIT MODEL ###
-        history = model.fit_generator(
-            train_generator, SAMPLES_PER_EPOCH, epochs=NB_EPOCHS, verbose=1,
-            validation_data=validation_generator, validation_steps=NB_VAL_SAMPLES,
-            callbacks=[
-                keras.callbacks.ModelCheckpoint(MODEL_SAVE_PATH, save_best_only=True, verbose=1),
-                keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
-                keras.callbacks.EarlyStopping(patience=15, verbose=0)
-            ]
-        )
+
+    ### FIT MODEL ###
+    history = model.fit_generator(
+        train_generator, SAMPLES_PER_EPOCH, epochs=NB_EPOCHS, verbose=1,
+        validation_data=validation_generator, validation_steps=NB_VAL_SAMPLES,
+        callbacks=[
+            keras.callbacks.ModelCheckpoint(MODEL_SAVE_PATH, save_best_only=True, verbose=1),
+            keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
+            keras.callbacks.EarlyStopping(patience=15, verbose=0)
+        ]
+    )
 
     ### load best weights ###
     model.load_weights(MODEL_SAVE_PATH)
