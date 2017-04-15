@@ -16,6 +16,7 @@ import medleydb as mdb
 from medleydb import utils
 import os
 import pandas
+import librosa
 
 
 import mir_eval
@@ -41,14 +42,17 @@ def get_model_metrics(data_object, model, model_scores_path):
     df.to_csv(model_scores_path)
 
 
-def get_all_multif0_metrics(test_files, model, save_dir, scores_path, score_summary_path):
+def get_all_multif0_metrics(test_files, model, save_dir, scores_path, score_summary_path, create_pred=False):
     all_scores = []
     for test_pair in test_files:
         pair_key = os.path.basename(test_pair[0])
         print("    > {}".format(pair_key))
-        save_path = os.path.join(
-            save_dir, "{}.pdf".format(os.path.basename(test_pair[0]).split('.')[0])
-        )
+        if create_pred:
+            save_path = os.path.join(
+                save_dir, "{}.pdf".format(os.path.basename(test_pair[0]).split('.')[0])
+            )
+        else:
+            save_path = None
         predicted_output, true_output = generate_prediction(
             test_pair, model, save_path=save_path
         )
@@ -154,7 +158,14 @@ def generate_prediction(test_pair, model, save_path=None):
     predicted_output = np.hstack(output_list)
 
     if save_path is not None:
-        plot_prediction(input_hcqt, predicted_output, true_output, save_path)
+        if not os.path.exists(save_path):
+            plot_prediction(input_hcqt, predicted_output, true_output, save_path)
+
+        freqs = C.get_freq_grid()
+        times = C.get_time_grid(predicted_output.shape[1])
+        fs = 16000
+        y_synth = mir_eval.sonify.time_frequency(predicted_output, freqs, times, fs)
+        librosa.output.write_wav("{}.wav".format(save_path), y_synth, fs, norm=True)
 
     return predicted_output, true_output
 
