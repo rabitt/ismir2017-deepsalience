@@ -49,8 +49,31 @@ def score_on_test_set(test_set_name, model, save_path):
         )[0]
         
         # generate prediction on numpy file
-        predicted_output, _ = get_single_test_prediction(npy_file, model)
+        predicted_output, input_hcqt = \
+            get_single_test_prediction(npy_file, model)
         
+        # save plot for first example
+        if len(all_scores) == 0:
+            plot_save_path = os.path.join(
+                save_path,
+                "{}_{}_plot_output.pdf".format(file_keys[0], file_keys[1])
+            )
+
+            plt.figure(figsize=(15, 15))
+
+            plt.subplot(2, 1, 1)
+            plt.imshow(input_hcqt[0, :, :, 1], origin='lower')
+            plt.axis('auto')
+            plt.colorbar()
+
+            plt.subplot(2, 1, 2)
+            plt.imshow(predicted_output, origin='lower')
+            plt.axis('auto')
+            plt.colorbar()
+
+            plt.savefig(plot_save_path, format='pdf')
+            plt.close()
+
         # save prediction
         np.save(
             os.path.join(
@@ -211,12 +234,12 @@ def pitch_activations_to_mf0(pitch_activation_mat, thresh):
 
     idx = np.where(pitch_activation_mat >= thresh)
 
-    freqs = [[] for _ in range(len(times))]
+    est_freqs = [[] for _ in range(len(times))]
     for f, t in zip(idx[0], idx[1]):
-        freqs[t].append(freqs[f])
+        est_freqs[t].append(freqs[f])
 
-    freqs = [np.array(lst) for lst in freqs]
-    return times, freqs
+    est_freqs = [np.array(lst) for lst in est_freqs]
+    return times, est_freqs
 
 
 def compute_metrics(predicted_mat, true_mat):
