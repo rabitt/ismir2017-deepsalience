@@ -82,7 +82,8 @@ def keras_generator(data_list, input_patch_size):
         streams.append(
             pescador.Streamer(
                 patch_generator, fpath_in, fpath_out,
-                input_patch_size=input_patch_size
+                input_patch_size=input_patch_size,
+                random_state=RANDOM_STATE
             )
         )
 
@@ -118,7 +119,10 @@ def patch_generator(fpath_in, fpath_out, input_patch_size):
     _, _, n_times = data_in.shape
     n_f, n_t = input_patch_size
 
-    while True:
+    t_vals = np.arange(0, n_times - n_t)
+    np.random.shuffle(t_vals)
+
+    for t in t_vals:
         f = 0
         t = np.random.randint(0, n_times - n_t)
 
