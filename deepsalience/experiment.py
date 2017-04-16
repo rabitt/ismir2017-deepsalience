@@ -57,7 +57,7 @@ def train(model, model_save_path):
     return model, history, dat
 
 
-def evaluate(exper_dir, save_key, history, dat, model):
+def run_evaluation(exper_dir, save_key, history, dat, model):
 
     (save_path, _, plot_save_path,
      model_scores_path, _, _
@@ -91,7 +91,7 @@ def experiment(save_key, model):
 
     model, history, dat = train(model, model_save_path)
 
-    evaluate(exper_dir, save_key, history, dat, model)
+    run_evaluation(exper_dir, save_key, history, dat, model)
 
     print("done!")
     print("Results saved to {}".format(save_path))
