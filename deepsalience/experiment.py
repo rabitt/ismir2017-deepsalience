@@ -89,7 +89,7 @@ def experiment(save_key, model):
     """
     exper_dir = core.experiment_output_path()
 
-    (save_path, model_save_path, _,_, _, _) = evaluate.get_paths(
+    (save_path, model_save_path, _, _, _, _) = evaluate.get_paths(
         exper_dir, save_key
     )
 

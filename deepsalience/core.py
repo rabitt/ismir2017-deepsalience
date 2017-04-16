@@ -82,13 +82,13 @@ def keras_generator(data_list, input_patch_size):
         streams.append(
             pescador.Streamer(
                 patch_generator, fpath_in, fpath_out,
-                input_patch_size=input_patch_size,
-                random_state=RANDOM_STATE
+                input_patch_size=input_patch_size
             )
         )
 
     stream_mux = pescador.Mux(
-        streams, 10, with_replacement=True, lam=500
+        streams, 10, with_replacement=True, lam=500,
+        random_state=RANDOM_STATE
     )
 
     for batch in stream_mux.tuples('X', 'Y'):
