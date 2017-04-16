@@ -60,7 +60,7 @@ def train(model, model_save_path):
 def evaluate(exper_dir, save_key, history, dat, model):
 
     (save_path, _, plot_save_path,
-     model_scores_path, scores_path, score_summary_path
+     model_scores_path, _, _
     ) = evaluate.get_paths(exper_dir, save_key)
 
     ### Results plots ###
@@ -71,17 +71,13 @@ def evaluate(exper_dir, save_key, history, dat, model):
     print("getting model metrics...")
     evaluate.get_model_metrics(dat, model, model_scores_path)
 
-    print("getting multif0 metrics...")
-    evaluate.get_all_multif0_metrics(
-        dat.test_files, model, save_path, scores_path, score_summary_path
-    )
-
-    bach10_files = core.get_file_paths(mdb.TRACK_LIST_BACH10, dat.data_path)
-    evaluate.get_all_multif0_metrics(
-        bach10_files, model,
-        save_path,
-        os.path.join(save_path, "bach10_scores.csv"),
-        os.path.join(save_path, "bach10_score_summary.csv"), create_pred=True)
+    print("scoring multif0 metrics on test sets...")
+    print("    > bach10...")
+    evaluate.score_on_test_set('bach10', model, save_path)
+    print("    > medleydb test...")
+    evaluate.score_on_test_set('mdb_test', model, save_path)
+    print("    > su...")
+    evaluate.score_on_test_set('su', model, save_path)
 
 
 def experiment(save_key, model):
