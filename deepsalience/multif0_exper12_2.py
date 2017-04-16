@@ -21,7 +21,7 @@ def main():
     y2 = Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy2')(y1)
     y3 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy1')(y2)
     y4 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy2')(y3)
-    y5 = Conv2D(8, (70, 3), padding='same', activation='relu', name='distribute')(y4)
+    y5 = Conv2D(8, (70, 3), padding='same', activation='relu', name='harm')(y4)
     y6 = Conv2D(8, (360, 1), padding='same', activation='relu', name='distribute')(y5)
     y7 = Conv2D(1, (1, 1), padding='same', activation='sigmoid', name='squishy')(y6)
     predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y7)

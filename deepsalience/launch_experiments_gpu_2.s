@@ -20,9 +20,9 @@ unset XDG_RUNTIME_DIR
 
 cd ~/repos/multif0/deepsalience
 
-echo "Running Experiment 11"
-python multif0_exper11_2.py
+#echo "Running Experiment 11"
+#python multif0_exper11_2.py
 echo "Running Experiment 12"
 python multif0_exper12_2.py
-echo "Running Experiment 13"
-python multif0_exper13_2.py
+#echo "Running Experiment 13"
+#python multif0_exper13_2.py
