@@ -14,13 +14,13 @@ import os
 import core
 import evaluate
 
-SAMPLES_PER_EPOCH = 512
+SAMPLES_PER_EPOCH = 256
 NB_EPOCHS = 100
 NB_VAL_SAMPLES = 512
 
 
 def train(model, model_save_path):
-    
+
     data_path = core.data_path_multif0_complete()
     mtrack_list = core.track_id_list()
     input_patch_size = core.patch_size()
@@ -47,7 +47,7 @@ def train(model, model_save_path):
             keras.callbacks.ModelCheckpoint(
                 model_save_path, save_best_only=True, verbose=1),
             keras.callbacks.ReduceLROnPlateau(patience=5, verbose=1),
-            keras.callbacks.EarlyStopping(patience=15, verbose=0)
+            keras.callbacks.EarlyStopping(patience=25, verbose=0)
         ]
     )
 
