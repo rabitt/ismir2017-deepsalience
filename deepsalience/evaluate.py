@@ -31,7 +31,45 @@ def save_multif0_output(times, freqs, output_path):
             csv_writer.writerow([t] + f)
 
 
-def score_on_test_set(test_set_name, model, save_path):
+def get_best_thresh(dat, model):
+    """Use validation set to get the best threshold value
+    """
+
+    # get files for this test set
+    test_set_path = os.path.join(test_path(), test_set_name)
+    validation_files = dat.validation_files
+
+    thresh_vals = np.arange(0.1, 1.0, 0.1)
+    thresh_scores = {t: [] for t in thresh_vals}
+    for npy_file, label_file in validation_files:
+
+        # generate prediction on numpy file
+        predicted_output, input_hcqt = \
+            get_single_test_prediction(npy_file, model)
+
+        # load ground truth labels
+        ref_times, ref_freqs = \
+            mir_eval.io.load_ragged_time_series(label_file)
+
+        for thresh in thresh_vals:
+            # get multif0 output from prediction
+            est_times, est_freqs = pitch_activations_to_mf0(predicted_output, thresh)
+
+            # get multif0 metrics and append
+            scores = mir_eval.multipitch.evaluate(
+                ref_times, ref_freqs, est_times, est_freqs)
+            thresh_scores[thresh].append(scores['Accuracy'])
+
+    avg_thresh = [np.mean(thresh_scores[t]) for t in thresh_vals]
+    best_thresh = thresh_vals[np.argmax(avg_thresh)]
+    print("Best Threshold is {}".format(best_thresh))
+    print("Best validation accuracy is {}".format(np.max(avg_thresh)))
+    print("Validation accuracy at 0.5 is {}".format(np.mean(thresh_scores[0.5])))
+
+    return best_thresh
+
+
+def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
     """score a model on all files in a named test set
     """
 
@@ -85,7 +123,7 @@ def score_on_test_set(test_set_name, model, save_path):
         )
 
         # get multif0 output from prediction
-        est_times, est_freqs = pitch_activations_to_mf0(predicted_output, 0.5)
+        est_times, est_freqs = pitch_activations_to_mf0(predicted_output, thresh)
 
         # save multif0 output
         save_multif0_output(
