@@ -91,7 +91,9 @@ def keras_generator(data_list, input_patch_size):
         random_state=RANDOM_STATE
     )
 
-    for batch in stream_mux.tuples('X', 'Y'):
+    batch_generator = pescador.BufferedStreamer(stream_mux, 16)
+
+    for batch in batch_generator.tuples('X', 'Y'):
         yield batch
 
 
@@ -167,7 +169,7 @@ class Data(object):
         self.input_patch_size = input_patch_size
 
         self.data_path = data_path
-        
+
         (self.train_set,
          self.validation_set,
          self.test_set) = self._train_val_test_split()
@@ -180,7 +182,7 @@ class Data(object):
 
     def _train_val_test_split(self):
         """Get randomized artist-conditional splits
-        """ 
+        """
         full_list = []
         for m in self.mtrack_list:
             globbed = get_file_paths([m], self.data_path)

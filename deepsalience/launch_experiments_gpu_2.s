@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-#SBATCH --job-name=mf0_exper2
+#SBATCH --job-name=mf0_exper
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=12:00:00
+#SBATCH --time=14:00:00
 #SBATCH --mem=50GB
 #SBATCH -p gpu 
 #SBATCH --gres=gpu:1
@@ -20,17 +20,31 @@ unset XDG_RUNTIME_DIR
 
 cd ~/repos/multif0/deepsalience
 
-echo "Running Experiment 7"
-python multif0_exper7_3.py
-echo "Running Experiment 8"
-python multif0_exper8_3.py
-echo "Running Experiment 9"
-python multif0_exper9_3.py
-echo "Running Experiment 10"
-python multif0_exper10_3.py
-echo "Running Experiment 11"
-python multif0_exper11_3.py
-echo "Running Experiment 12"
-python multif0_exper12_3.py
-echo "Running Experiment 13"
-python multif0_exper13_3.py
+echo "Running harmonic zscore Experiment 1"
+python multif0_exper1_batchin.py
+echo "Running harmonic zscore Experiment 2"
+python multif0_exper2_batchin.py
+echo "Running harmonic zscore Experiment 3"
+python multif0_exper3_batchin.py
+echo "Running harmonic zscore Experiment 4"
+python multif0_exper4_batchin.py
+echo "Running harmonic zscore Experiment 5"
+python multif0_exper5_batchin.py
+echo "Running harmonic zscore Experiment 6"
+python multif0_exper6_batchin.py
+echo "Running harmonic zscore Experiment 7"
+python multif0_exper7_batchin.py
+echo "Running harmonic zscore Experiment 8"
+python multif0_exper8_batchin.py
+echo "Running harmonic zscore Experiment 9"
+python multif0_exper9_batchin.py
+echo "Running harmonic zscore Experiment 10"
+python multif0_exper10_batchin.py
+echo "Running harmonic zscore Experiment 11"
+python multif0_exper11_batchin.py
+echo "Running harmonic zscore Experiment 12"
+python multif0_exper12_batchin.py
+echo "Running harmonic zscore Experiment 13"
+python multif0_exper13_batchin.py
+echo "Running harmonic zscore Experiment 14"
+python multif0_exper14_batchin.py

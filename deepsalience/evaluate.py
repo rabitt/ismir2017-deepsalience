@@ -39,7 +39,7 @@ def score_on_test_set(test_set_name, model, save_path):
     test_npy_files = glob.glob(os.path.join(test_set_path, '*.npy'))
 
     all_scores = []
-    for npy_file in test_npy_files:
+    for npy_file in sorted(test_npy_files):
         # get input npy file and ground truth label pair
         file_keys = os.path.basename(npy_file).replace('-', '_').split('_')[:2]
         label_file = glob.glob(
