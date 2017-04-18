@@ -71,6 +71,7 @@ def run_evaluation(exper_dir, save_key, history, dat, model):
     print("getting model metrics...")
     evaluate.get_model_metrics(dat, model, model_scores_path)
 
+    print("getting best threshold...")
     thresh = get_best_thresh(dat, model)
 
     print("scoring multif0 metrics on test sets...")
