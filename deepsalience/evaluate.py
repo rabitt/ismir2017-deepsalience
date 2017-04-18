@@ -11,6 +11,7 @@ import mir_eval
 import numpy as np
 import os
 import pandas
+import scipy
 
 import compute_training_data as C
 
@@ -47,11 +48,11 @@ def score_on_test_set(test_set_name, model, save_path):
                 test_set_path,
                 "{}*{}*.txt".format(file_keys[0], file_keys[1]))
         )[0]
-        
+
         # generate prediction on numpy file
         predicted_output, input_hcqt = \
             get_single_test_prediction(npy_file, model)
-        
+
         # save plot for first example
         if len(all_scores) == 0:
             plot_save_path = os.path.join(
@@ -80,12 +81,12 @@ def score_on_test_set(test_set_name, model, save_path):
                 save_path,
                 "{}_{}_prediction.npy".format(file_keys[0], file_keys[1])
             ),
-            predicted_output.astype(np.float32)    
+            predicted_output.astype(np.float32)
         )
-        
+
         # get multif0 output from prediction
         est_times, est_freqs = pitch_activations_to_mf0(predicted_output, 0.5)
-        
+
         # save multif0 output
         save_multif0_output(
             est_times, est_freqs,
@@ -94,17 +95,17 @@ def score_on_test_set(test_set_name, model, save_path):
                 "{}_{}_prediction.txt".format(file_keys[0], file_keys[1])
             )
         )
-        
+
         # load ground truth labels
         ref_times, ref_freqs = \
             mir_eval.io.load_ragged_time_series(label_file)
-        
+
         # get multif0 metrics and append
         scores = mir_eval.multipitch.evaluate(
             ref_times, ref_freqs, est_times, est_freqs)
         scores['track'] = '_'.join(file_keys)
         all_scores.append(scores)
-    
+
     # save scores to data frame
     scores_path = os.path.join(
         save_path, '{}_all_scores.csv'.format(test_set_name)
@@ -141,37 +142,6 @@ def get_model_metrics(data_object, model, model_scores_path):
     )
     print(df)
     df.to_csv(model_scores_path)
-
-
-# def get_all_multif0_metrics(test_files, model, save_dir, scores_path,
-#                             score_summary_path, create_pred=False):
-#     """For test file pairs compute and save multif0 scores and optionally generate
-#     plots and sonifications of outputs
-#     """
-#     all_scores = []
-#     for test_pair in test_files:
-#         pair_key = os.path.basename(test_pair[0])
-#         print("    > {}".format(pair_key))
-#         if create_pred:
-#             save_path = os.path.join(
-#                 save_dir, "{}.pdf".format(
-#                     os.path.basename(test_pair[0]).split('.')[0]
-#                 )
-#             )
-#         else:
-#             save_path = None
-#         predicted_output, true_output = generate_prediction(
-#             test_pair, model, save_path=save_path
-#         )
-
-#         scores = compute_metrics(predicted_output, true_output)
-#         scores['track'] = pair_key
-#         all_scores.append(scores)
-
-#     df = pandas.DataFrame(all_scores)
-#     df.to_csv(scores_path)
-#     df.describe().to_csv(score_summary_path)
-#     print(df.describe())
 
 
 def get_paths(save_dir, save_key):
@@ -232,6 +202,10 @@ def pitch_activations_to_mf0(pitch_activation_mat, thresh):
     freqs = C.get_freq_grid()
     times = C.get_time_grid(pitch_activation_mat.shape[1])
 
+    peak_thresh_mat = np.zeros(pitch_activation_mat.shape)
+    peaks = scipy.signal.argrelmax(pitch_activation_mat, axis=0)
+    peak_thresh_mat[peaks] = pitch_activation_mat[peaks]
+
     idx = np.where(pitch_activation_mat >= thresh)
 
     est_freqs = [[] for _ in range(len(times))]
@@ -269,33 +243,6 @@ def get_single_test_prediction(npy_file, model):
 
     predicted_output = np.hstack(output_list)
     return predicted_output, input_hcqt
-
-
-# def generate_prediction(test_pair, model, save_path=None):
-#     true_output = np.load(test_pair[1])
-
-#     predicted_output, input_hcqt = get_single_test_prediction(test_pair[0], model)
-
-#     if save_path is not None:
-#         if not os.path.exists(save_path):
-#             plot_prediction(
-#                 input_hcqt, predicted_output, true_output, save_path
-#             )
-
-#         freqs = C.get_freq_grid()
-#         times = C.get_time_grid(predicted_output.shape[1])
-#         fs = 16000
-#         try:
-#             y_synth = mir_eval.sonify.time_frequency(
-#                 predicted_output, freqs, times, fs
-#             )
-#             librosa.output.write_wav(
-#                 "{}.wav".format(save_path), y_synth, fs, norm=True
-#             )
-#         except:
-#             print("    > unable to synthesize {}".format(save_path))
-
-#     return predicted_output, true_output
 
 
 def plot_prediction(input_hcqt, predicted_output, true_output, save_path):
