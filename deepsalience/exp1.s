@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH --job-name=mf0_exper
+#SBATCH --job-name=e1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
