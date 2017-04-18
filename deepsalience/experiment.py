@@ -71,13 +71,15 @@ def run_evaluation(exper_dir, save_key, history, dat, model):
     print("getting model metrics...")
     evaluate.get_model_metrics(dat, model, model_scores_path)
 
+    thresh = get_best_thresh(dat, model)
+
     print("scoring multif0 metrics on test sets...")
     print("    > bach10...")
-    evaluate.score_on_test_set('bach10', model, save_path)
+    evaluate.score_on_test_set('bach10', model, save_path, thresh)
     print("    > medleydb test...")
-    evaluate.score_on_test_set('mdb_test', model, save_path)
+    evaluate.score_on_test_set('mdb_test', model, save_path, thresh)
     print("    > su...")
-    evaluate.score_on_test_set('su', model, save_path)
+    evaluate.score_on_test_set('su', model, save_path, thresh)
 
 
 def experiment(save_key, model):
