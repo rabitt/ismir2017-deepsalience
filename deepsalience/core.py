@@ -22,7 +22,7 @@ def patch_size():
 
 
 def experiment_output_path():
-    return "/home/rmb456/repos/multif0/experiment_output"
+    return "/scratch/rmb456/multif0/experiment_output"
 
 
 def data_path_multif0_complete():
