@@ -36,7 +36,6 @@ def get_best_thresh(dat, model):
     """
 
     # get files for this test set
-    test_set_path = os.path.join(test_path(), test_set_name)
     validation_files = dat.validation_files
 
     thresh_vals = np.arange(0.1, 1.0, 0.1)
