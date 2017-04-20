@@ -31,13 +31,6 @@ def save_multif0_output(times, freqs, output_path):
             csv_writer.writerow([t] + f)
 
 
-def remove_zero_freqs(frequency_list):
-    for i, fvals in enumerate(frequency_list):
-        if any(fvals == 0):
-            frequency_list[i] = np.array([f for f in fvals if f > 0])
-    return frequency_list
-
-
 def get_best_thresh(dat, model):
     """Use validation set to get the best threshold value
     """
@@ -64,7 +57,6 @@ def get_best_thresh(dat, model):
         # load ground truth labels
         ref_times, ref_freqs = \
             mir_eval.io.load_ragged_time_series(label_file)
-        ref_freqs = remove_zero_freqs(ref_freqs)
 
         for thresh in thresh_vals:
             # get multif0 output from prediction
@@ -153,7 +145,6 @@ def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
         # load ground truth labels
         ref_times, ref_freqs = \
             mir_eval.io.load_ragged_time_series(label_file)
-        ref_freqs = remove_zero_freqs(ref_freqs)
 
         # get multif0 metrics and append
         scores = mir_eval.multipitch.evaluate(
