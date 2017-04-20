@@ -9,11 +9,7 @@ import os
 
 import experiment
 
-
-def main():
-
-    save_key = os.path.basename(__file__).split('.')[0]
-
+def model_def():
     ### DEFINE MODEL ###
     input_shape = (None, None, 6)
     inputs = Input(shape=input_shape)
@@ -23,7 +19,7 @@ def main():
     y1a = BatchNormalization()(y1)
     y2 = Conv2D(16, (60, 3), padding='same', activation='relu', name='deharm')(y1a)
     y2a = BatchNormalization()(y2)
-    y3 = Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy2')(y2a)
+    y3 = Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy2btstf')(y2a)
     y3a = BatchNormalization()(y3)
     y4 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy1')(y3a)
     y4a = BatchNormalization()(y4)
@@ -33,7 +29,13 @@ def main():
     predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y6)
 
     model = Model(inputs=inputs, outputs=predictions)
+    return model
 
+
+def main():
+
+    save_key = os.path.basename(__file__).split('.')[0]
+    model = model_def()
     experiment.experiment(save_key, model)
 
 if __name__ == '__main__':

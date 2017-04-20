@@ -10,10 +10,7 @@ import os
 import experiment
 
 
-def main():
-
-    save_key = os.path.basename(__file__).split('.')[0]
-
+def model_def():
     ### DEFINE MODEL ###
     input_shape = (None, None, 6)
     inputs = Input(shape=input_shape)
@@ -33,6 +30,13 @@ def main():
     predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y6)
 
     model = Model(inputs=inputs, outputs=predictions)
+    return model
+
+
+def main():
+
+    save_key = os.path.basename(__file__).split('.')[0]
+    model = model_def()
     experiment.experiment(save_key, model)
 
 if __name__ == '__main__':
