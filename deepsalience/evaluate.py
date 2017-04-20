@@ -37,10 +37,18 @@ def get_best_thresh(dat, model):
 
     # get files for this test set
     validation_files = dat.validation_files
+    test_set_path = test_path()
 
     thresh_vals = np.arange(0.1, 1.0, 0.1)
     thresh_scores = {t: [] for t in thresh_vals}
-    for npy_file, label_file in validation_files:
+    for npy_file, _ in validation_files:
+
+        file_keys = os.path.basename(npy_file).split('_')[:2]
+        label_file = glob.glob(
+            os.path.join(
+                test_set_path, 'mdb_test',
+                "{}*{}.txt".format(file_keys[0], file_keys[1]))
+        )[0]
 
         # generate prediction on numpy file
         predicted_output, input_hcqt = \
@@ -52,7 +60,8 @@ def get_best_thresh(dat, model):
 
         for thresh in thresh_vals:
             # get multif0 output from prediction
-            est_times, est_freqs = pitch_activations_to_mf0(predicted_output, thresh)
+            est_times, est_freqs = \
+                pitch_activations_to_mf0(predicted_output, thresh)
 
             # get multif0 metrics and append
             scores = mir_eval.multipitch.evaluate(
@@ -79,11 +88,9 @@ def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
     all_scores = []
     for npy_file in sorted(test_npy_files):
         # get input npy file and ground truth label pair
-        file_keys = os.path.basename(npy_file).replace('-', '_').split('_')[:2]
+        file_keys = os.path.basename(npy_file).split('.')[0]
         label_file = glob.glob(
-            os.path.join(
-                test_set_path,
-                "{}*{}*.txt".format(file_keys[0], file_keys[1]))
+            os.path.join(test_set_path, "{}.txt".format(file_keys))
         )[0]
 
         # generate prediction on numpy file
@@ -122,7 +129,9 @@ def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
         )
 
         # get multif0 output from prediction
-        est_times, est_freqs = pitch_activations_to_mf0(predicted_output, thresh)
+        est_times, est_freqs = pitch_activations_to_mf0(
+            predicted_output, thresh
+        )
 
         # save multif0 output
         save_multif0_output(
