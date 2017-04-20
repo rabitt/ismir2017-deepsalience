@@ -243,7 +243,7 @@ def pitch_activations_to_mf0(pitch_activation_mat, thresh):
     peaks = scipy.signal.argrelmax(pitch_activation_mat, axis=0)
     peak_thresh_mat[peaks] = pitch_activation_mat[peaks]
 
-    idx = np.where(pitch_activation_mat >= thresh)
+    idx = np.where(peak_thresh_mat >= thresh)
 
     est_freqs = [[] for _ in range(len(times))]
     for f, t in zip(idx[0], idx[1]):
