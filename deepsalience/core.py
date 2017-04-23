@@ -39,6 +39,34 @@ def data_path_multif0_incomplete():
         "training_data_with_blur/multif0_incomplete"
 
 
+def data_path_melody1():
+    """Data path for incomplete multif0 data
+    """
+    return "/scratch/rmb456/multif0_ismir2017/" + \
+        "training_data_with_blur/melody1"
+
+
+def data_path_melody2():
+    """Data path for incomplete multif0 data
+    """
+    return "/scratch/rmb456/multif0_ismir2017/" + \
+        "training_data_with_blur/melody2"
+
+
+def data_path_melody3():
+    """Data path for incomplete multif0 data
+    """
+    return "/scratch/rmb456/multif0_ismir2017/" + \
+        "training_data_with_blur/melody3"
+
+
+def data_path_pitch():
+    """Data path for incomplete multif0 data
+    """
+    return "/scratch/rmb456/multif0_ismir2017/" + \
+        "training_data_with_blur/pitch"
+
+
 def track_id_list():
     """MedleyDB track ids used for train test and validation
     """
