@@ -256,7 +256,7 @@ def save_data(save_path, prefix, X, Y, f, t):
 def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
     for stem in mtrack.stems.values():
         data = stem.pitch_annotation
-        prefix = "{}_STEM_{}".format(mtrack.track_id, stem.stem_id)
+        prefix = "{}_STEM_{}".format(mtrack.track_id, stem.stem_idx)
 
         input_path = os.path.join(save_dir, 'inputs', "{}_input.npy".format(prefix))
         output_path = os.path.join(save_dir, 'outputs', "{}_output.npy".format(prefix))
@@ -503,7 +503,7 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur,
 def main(args):
 
     mtracks = mdb.load_all_multitracks(
-        dataset_version=['V1', 'V2', 'EXTRA', 'BACH10']
+        dataset_version=['V1']#, 'V2', 'EXTRA', 'BACH10']
     )
 
     Parallel(n_jobs=args.n_jobs, verbose=5)(

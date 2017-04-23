@@ -22,7 +22,7 @@ def main():
     all_models = glob.glob(
         os.path.join("../experiment_output/multif0*/", "*.pkl")
     )
-    for mpath in all_models:
+    for mpath in sorted(all_models):
         print("Running evaluation for {}".format(os.path.basename(mpath)))
         try:
             model_key = os.path.basename(mpath).split('.')[0]
