@@ -28,7 +28,9 @@ def save_multif0_output(times, freqs, output_path):
     with open(output_path, 'w') as fhandle:
         csv_writer = csv.writer(fhandle, delimiter='\t')
         for t, f in zip(times, freqs):
-            csv_writer.writerow([t] + f)
+            row = [t]
+            row.extend(f)
+            csv_writer.writerow(row)
 
 
 def get_best_thresh(dat, model):
@@ -44,7 +46,6 @@ def get_best_thresh(dat, model):
     for npy_file, _ in validation_files:
 
         file_keys = os.path.basename(npy_file).split('_')[:2]
-        print("    > validating on {}_{}".format(file_keys[0], file_keys[1]))
         label_file = glob.glob(
             os.path.join(
                 test_set_path, 'mdb_test',
@@ -89,8 +90,7 @@ def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
     all_scores = []
     for npy_file in sorted(test_npy_files):
         # get input npy file and ground truth label pair
-        file_keys = '_'.join(os.path.basename(npy_file).split('.')[0].split('_')[:2])
-
+        file_keys = os.path.basename(npy_file).split('.')[0]
         label_file = glob.glob(
             os.path.join(test_set_path, "{}.txt".format(file_keys))
         )[0]
@@ -103,7 +103,7 @@ def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
         if len(all_scores) == 0:
             plot_save_path = os.path.join(
                 save_path,
-                "{}_plot_output.pdf".format(file_keys)
+                "{}_{}_plot_output.pdf".format(file_keys[0], file_keys[1])
             )
 
             plt.figure(figsize=(15, 15))
@@ -125,7 +125,7 @@ def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
         np.save(
             os.path.join(
                 save_path,
-                "{}_prediction.npy".format(file_keys)
+                "{}_{}_prediction.npy".format(file_keys[0], file_keys[1])
             ),
             predicted_output.astype(np.float32)
         )
@@ -140,7 +140,7 @@ def score_on_test_set(test_set_name, model, save_path, thresh=0.5):
             est_times, est_freqs,
             os.path.join(
                 save_path,
-                "{}_prediction.txt".format(file_keys)
+                "{}_{}_prediction.txt".format(file_keys[0], file_keys[1])
             )
         )
 
