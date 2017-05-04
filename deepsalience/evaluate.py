@@ -175,13 +175,13 @@ def get_model_metrics(data_object, model, model_scores_path):
     test_generator = data_object.get_test_generator()
 
     train_eval = model.evaluate_generator(
-        train_generator, 5000, max_q_size=10
+        train_generator, 1000, max_q_size=10
     )
     valid_eval = model.evaluate_generator(
-        validation_generator, 5000, max_q_size=10
+        validation_generator, 1000, max_q_size=10
     )
     test_eval = model.evaluate_generator(
-        test_generator, 5000, max_q_size=10
+        test_generator, 1000, max_q_size=10
     )
 
     df = pandas.DataFrame(
@@ -244,7 +244,7 @@ def plot_metrics_epochs(history, plot_save_path):
 
 
 def pitch_activations_to_mf0(pitch_activation_mat, thresh):
-    """Convert a pitch activation map to multif0 format by thresholding values
+    """Convert a pitch activation map to multif0 by thresholding peak values
     at thresh
     """
     freqs = C.get_freq_grid()
@@ -264,22 +264,29 @@ def pitch_activations_to_mf0(pitch_activation_mat, thresh):
     return times, est_freqs
 
 
-def compute_metrics(predicted_mat, true_mat):
-    """Score two pitch activation maps (predictions against ground truth)
-    """
-    ref_times, ref_freqs = pitch_activations_to_mf0(true_mat, 1)
-    est_times, est_freqs = pitch_activations_to_mf0(predicted_mat, 0.5)
+# def compute_metrics(predicted_mat, true_mat):
+#     """Score two pitch activation maps (predictions against ground truth)
+#     """
+#     ref_times, ref_freqs = pitch_activations_to_mf0(true_mat, 1)
+#     est_times, est_freqs = pitch_activations_to_mf0(predicted_mat, 0.5)
 
-    scores = mir_eval.multipitch.evaluate(
-        ref_times, ref_freqs, est_times, est_freqs
-    )
-    return scores
+#     scores = mir_eval.multipitch.evaluate(
+#         ref_times, ref_freqs, est_times, est_freqs
+#     )
+#     return scores
 
 
-def get_single_test_prediction(npy_file, model):
+def get_single_test_prediction(model, npy_file=None, audio_file=None):
     """Generate output from a model given an input numpy file
     """
-    input_hcqt = np.load(npy_file).transpose(1, 2, 0)[np.newaxis, :, :, :]
+    if npy_file is not None:
+        input_hcqt = np.load(npy_file)
+    elif audio_file is not None:
+        input_hcqt = (C.compute_hcqt(audio_file)).astype(np.float32)
+    else:
+        raise ValueError("one of npy_file or audio_file must be specified")
+
+    input_hcqt = input_hcqt.transpose(1, 2, 0)[np.newaxis, :, :, :]
 
     n_t = input_hcqt.shape[2]
     t_slices = list(np.arange(0, n_t, 5000))

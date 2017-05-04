@@ -39,6 +39,19 @@ def data_path_multif0_incomplete():
         "training_data_with_blur/multif0_incomplete"
 
 
+def data_path_bass():
+    """Data path for bass data
+    """
+    return "/scratch/rmb456/multif0_ismir2017/" + \
+        "training_data_with_blur/bass"
+
+def data_path_vocal():
+    """Data path for vocal data
+    """
+    return "/scratch/rmb456/multif0_ismir2017/" + \
+        "training_data_with_blur/vocal"
+
+
 def data_path_melody1():
     """Data path for incomplete multif0 data
     """
@@ -188,19 +201,54 @@ def get_file_paths(mtrack_list, data_path):
     return file_paths
 
 
+def create_data_split(mtrack_list, output_path):
+    mtracks = list(mdb.load_multitracks(mtrack_list))
+    test_potentials = [
+        m.track_id for m in mtracks if m.dataset_version == 'V1'
+    ]
+    all_others = [
+        m.track_id for m in mtracks if m.dataset_version != 'V1'
+    ]
+
+    split1 = utils.artist_conditional_split(
+        trackid_list=test_potentials, test_size=0.2,
+        num_splits=1, random_state=RANDOM_STATE
+    )
+
+    test_set = split1[0]['test']
+    remaining_tracks = split1[0]['train'] + all_others
+
+    split2 = utils.artist_conditional_split(
+        trackid_list=remaining_tracks, test_size=0.15,
+        num_splits=1, random_state=RANDOM_STATE
+    )
+
+    train_set = split2[0]['train']
+    validation_set = split2[0]['test']
+
+    data_splits = {
+        'train': train_set,
+        'validate': validation_set,
+        'test': test_set
+    }
+
+    with open(output_path, 'w') as fhandle:
+        json.dump(fhandle, data_splits, indent=2)
+
+
 class Data(object):
     """Class that deals with all the data mess
     """
-    def __init__(self, mtrack_list, data_path, input_patch_size):
+    def __init__(self, data_splits_path, data_path, input_patch_size):
 
-        self.mtrack_list = mtrack_list
+        self.data_splits_path = data_splits_path
         self.input_patch_size = input_patch_size
 
         self.data_path = data_path
 
         (self.train_set,
          self.validation_set,
-         self.test_set) = self._train_val_test_split()
+         self.test_set) = self.load_data_splits()
 
         self.train_files = get_file_paths(self.train_set, self.data_path)
         self.validation_files = get_file_paths(
@@ -208,41 +256,13 @@ class Data(object):
         )
         self.test_files = get_file_paths(self.test_set, self.data_path)
 
-    def _train_val_test_split(self):
+    def load_data_splits(self):
         """Get randomized artist-conditional splits
         """
-        full_list = []
-        for m in self.mtrack_list:
-            globbed = get_file_paths([m], self.data_path)
-            if len(globbed) > 0:
-                full_list.append(m)
+        with open(self.data_splits_path, 'r') as fhandle:
+            data_splits = json.load(fhandle)
 
-        self.full_list = full_list
-        mtracks = list(mdb.load_multitracks(full_list))
-        test_potentials = [
-            m.track_id for m in mtracks if m.dataset_version == 'V1'
-        ]
-        all_others = [
-            m.track_id for m in mtracks if m.dataset_version != 'V1'
-        ]
-
-        split1 = utils.artist_conditional_split(
-            trackid_list=test_potentials, test_size=0.2,
-            num_splits=1, random_state=RANDOM_STATE
-        )
-
-        test_set = split1[0]['test']
-        remaining_tracks = split1[0]['train'] + all_others
-
-        split2 = utils.artist_conditional_split(
-            trackid_list=remaining_tracks, test_size=0.15,
-            num_splits=1, random_state=RANDOM_STATE
-        )
-
-        train_set = split2[0]['train']
-        validation_set = split2[0]['test']
-
-        return train_set, validation_set, test_set
+        return data_splits['train'], data_splits['validate'], data_splits['test']
 
     def get_train_generator(self):
         """return a training data generator

@@ -1,0 +1,1 @@
+The audio and targets in the mdb_test folder are partial, linear mixes with complete annotations. Any non-annotated or polyphonic stem was removed from the mix.

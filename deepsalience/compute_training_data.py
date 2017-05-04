@@ -51,7 +51,8 @@ def compute_hcqt(audio_fpath):
             new_cqt_list.append(cqt_list[i][:, :min_time])
         cqt_list = new_cqt_list
 
-    log_hcqt = ((1.0/80.0) * librosa.core.amplitude_to_db(np.abs(np.array(cqt_list)), ref=np.max)) + 1.0
+    log_hcqt = ((1.0/80.0) * librosa.core.amplitude_to_db(
+        np.abs(np.array(cqt_list)), ref=np.max)) + 1.0
 
     return log_hcqt
 
@@ -225,9 +226,6 @@ def get_input_output_pairs(audio_fpath, annot_times, annot_freqs,
         print("    > using precomputed CQT for {}".format(os.path.basename(audio_fpath)))
         hcqt = np.load(precomputed_hcqt, mmap_mode='r')
 
-    if hcqt.shape[0] != 6:
-        raise ValueError("hcqt doesnt have the right shape :( {}".format(hcqt.shape))
-
     freq_grid = get_freq_grid()
     time_grid = get_time_grid(len(hcqt[0][0]))
 
@@ -274,6 +272,104 @@ def compute_solo_pitch(mtrack, save_dir, gaussian_blur):
                 stem.audio_path, annot[0], annot[1], gaussian_blur
             )
             save_data(save_dir, prefix, X, Y, f, t)
+
+
+def compute_bass(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
+    bass_stems = [
+        stem for stem in mtrack.stems.values() if \
+        (stem.component == 'bass' \
+            or 'electric bass' in stem.instrument \
+            or 'double bass' in stem.instrument) \
+        and stem.f0_type == 'm'
+    ]
+    if len(bass_stems) > 0:
+        all_times = []
+        all_freqs = []
+
+        for bass_stem in bass_stems:
+            bass_stem = bass_stems[0]
+
+            annot = np.array(bass_stem.pitch_estimate_pyin).T
+            annot_t = annot[0]
+            annot_f = annot[1]
+
+            bass_activation = np.array(mtrack.activation_conf_from_stem(bass_stem.stem_idx)).T
+            activation_interpolator = scipy.interpolate.interp1d(
+                bass_activation[0], bass_activation[1])
+            activations = activation_interpolator(annot_t)
+            annot_f[activations < 0.5] = 0.0
+
+            all_times.append(annot_t)
+            all_freqs.append(annot_f)
+
+        times = np.concatenate(all_times)
+        freqs = np.concatenate(all_freqs)
+
+        idx = np.where(freqs != 0.0)[0]
+        times = times[idx]
+        freqs = freqs[idx]
+
+    else:
+        times = np.array([])
+        freqs = np.array([])
+
+    X, Y, f, t = get_input_output_pairs(
+        mtrack.mix_path, times, freqs, gaussian_blur,
+        precomputed_hcqt
+    )
+    save_data(save_dir, prefix, X, Y, f, t)
+
+
+def compute_vocal(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
+    vocal_stems = [
+        stem for stem in mtrack.stems.values() if \
+        all([inst in VOCALS for inst in stem.instrument])
+    ]
+    if len(vocal_stems) > 0:
+        all_times = []
+        all_freqs = []
+
+        for vocal_stem in vocal_stems:
+            vocal_stem = vocal_stems[0]
+
+            data = vocal_stem.pitch_annotation
+            if data is None:
+                data = vocal_stem.pitch_estimate_pyin
+
+            if data is None:
+                print("    > skipping stem {} of {} in {}".format(
+                    vocal_stem.stem_idx, vocal_stem.instrument, mtrack.track_id))
+                continue
+
+            annot = np.array(data).T
+            annot_t = annot[0]
+            annot_f = annot[1]
+
+            vocal_activation = np.array(mtrack.activation_conf_from_stem(vocal_stem.stem_idx)).T
+            activation_interpolator = scipy.interpolate.interp1d(
+                vocal_activation[0], vocal_activation[1])
+            activations = activation_interpolator(annot_t)
+            annot_f[activations < 0.5] = 0.0
+
+            all_times.append(annot_t)
+            all_freqs.append(annot_f)
+
+        times = np.concatenate(all_times)
+        freqs = np.concatenate(all_freqs)
+
+        idx = np.where(freqs != 0.0)[0]
+        times = times[idx]
+        freqs = freqs[idx]
+
+    else:
+        times = np.array([])
+        freqs = np.array([])
+
+    X, Y, f, t = get_input_output_pairs(
+        mtrack.mix_path, times, freqs, gaussian_blur,
+        precomputed_hcqt
+    )
+    save_data(save_dir, prefix, X, Y, f, t)
 
 
 def compute_melody1(mtrack, save_dir, gaussian_blur, precomputed_hcqt):
@@ -484,6 +580,8 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur,
 
     if option == 'solo_pitch':
         compute_solo_pitch(mtrack, save_dir, gaussian_blur)
+    elif option == 'bass':
+        compute_bass(mtrack, save_dir, gaussian_blur, precomputed_hcqt)
     elif option == 'melody1':
         compute_melody1(mtrack, save_dir, gaussian_blur, precomputed_hcqt)
     elif option == 'melody2':
@@ -502,8 +600,13 @@ def compute_features_mtrack(mtrack, save_dir, option, gaussian_blur,
 
 def main(args):
 
+    if args.use_mdb2:
+        dataset_version = ['V1', 'V2', 'EXTRA']
+    else:
+        dataset_version = ['V1']
+
     mtracks = mdb.load_all_multitracks(
-        dataset_version=['V1']#, 'V2', 'EXTRA', 'BACH10']
+        dataset_version=dataset_version
     )
 
     Parallel(n_jobs=args.n_jobs, verbose=5)(
@@ -532,8 +635,14 @@ if __name__ == "__main__":
     parser.add_argument("precomputed_hcqt_path",
                         type=str,
                         help="Path to folder with hcqts precomputed")
+    parser.add_argument("--use-mdb2",
+                        dest='use_mdb2',
+                        action='store_true')
     parser.add_argument('--blur-labels',
                         dest='gaussian_blur',
                         action='store_true')
-    parser.set_defaults(gaussian_blur=False)
+    parser.set_defaults(gaussian_blur=True)
+    parser.set_defaults(use_mdb2=True)
     main(parser.parse_args())
+
+
