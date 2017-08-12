@@ -11,3 +11,6 @@ Rachel M. Bittner, Brian McFee, Justin Salamon, Peter Li, and Juan P. Bello "Dee
     Month = {Oct.},
     Title = {Deep Salience Representations for $F_0$ Estimation in Polyphonic Music},
     Year = {2017}}`
+
+
+To compute output from these models, run the script predict/predict_on_audio.py
