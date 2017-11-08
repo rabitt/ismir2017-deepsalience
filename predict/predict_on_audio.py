@@ -340,13 +340,13 @@ def compute_output(hcqt, time_grid, freq_grid, task, output_format, threshold,
         )
         save_path = os.path.join(
             save_dir, "{}_{}_singlef0.csv".format(save_name, task))
-        save_singlef0_output(times, freqs, output_path)
+        save_singlef0_output(times, freqs, save_path)
     elif output_format == 'multif0':
         times, freqs = get_multif0(
             pitch_activation_mat, freq_grid, time_grid, thresh=threshold)
         save_path = os.path.join(
             save_dir, "{}_{}_multif0.csv".format(save_name, task))
-        save_multif0_output(times, freqs, output_path)
+        save_multif0_output(times, freqs, save_path)
     else:
         save_path = os.path.join(
             save_dir, "{}_{}_salience.npz".format(save_name, task))
