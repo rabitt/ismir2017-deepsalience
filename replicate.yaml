@@ -1,0 +1,22 @@
+version: "0.1"
+name: Deep Salience
+task: single_f0_estimation
+workdir: predict
+entrypoints:
+  setup: predict_on_audio:load_model_melody1
+  infer: predict_on_audio:infer_example_melody1
+formats:
+  input: audio_path
+  output: melody_times_freqs
+test_set: medleydb_melody1
+validation_ids: outputs/validation_ids.txt
+python_dependencies:
+  - tensorflow==1.12.0
+  - pescador==1.0.0
+  - keras==2.0.3
+  - librosa==0.5.0
+  - mir_eval==0.4
+  - joblib==0.11
+python_version: 2.7.15
+system_dependencies:
+  - ffmpeg
