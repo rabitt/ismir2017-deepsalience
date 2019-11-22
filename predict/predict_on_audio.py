@@ -357,6 +357,40 @@ def compute_output(hcqt, time_grid, freq_grid, task, output_format, threshold,
     print("Done!")
 
 
+def load_model_melody1():
+    """Load the melody1 model and return it (used by Replicate)
+
+    Returns
+    -------
+    model : Model
+        The pretrained melody1 model
+    """
+    return load_model("melody1")
+
+
+def infer_example_melody1(model, audio_path):
+    """Run a single inference of the melody1 model on an audio file
+
+    Parameters
+    ----------
+    model : Model
+        The pretrained melody1 model
+    audio_path : str
+        Path to audio file to extract melody from
+
+    Returns
+    -------
+    (times, freqs) : Tuple[np.ndarray, np.ndarray]
+        Time grid and predicted frequencies
+    """
+    hcqt, freq_grid, time_grid = compute_hcqt(audio_path)
+    pitch_activation_mat = get_single_test_prediction(model, hcqt)
+    times, freqs = get_singlef0(
+        pitch_activation_mat, freq_grid, time_grid, thresh=0.3,
+        use_neg=True
+    )
+    return times, freqs
+
 
 def main(args):
     if args.task not in ['all'] + TASKS:
